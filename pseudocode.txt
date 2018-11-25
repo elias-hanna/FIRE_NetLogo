@@ -1,0 +1,171 @@
+/*Init Variables*/
+
+ro = //rayon d'operation d'un agent
+alpha = randomfloat(0.25:1) // taux d'activité d'un consumer
+ciI = 2, ciW = 1, ciR = 2, ciC = 0.5 // component importance, dans le calcul final de confiance
+
+gammaW = -ln(0.5) // paramètre fonction de fiabilité (WR)
+nBF = 2 // branching factor. Largeur maximale du graphe de demande de rating (WR)
+nRL = 5 // referal length. Profondeur maximale du graphe de demande. (WR)
+
+m = ?? // nombre de ratings minimum pour être fiable (IT). Dans l'article long, la fiabilité de IT se calcule comme pour WR ou CR...
+lambda = -5/ln(0.5) // facteur de récence, valeur petite = importance élevée aux évènements récents (IT)
+
+hist_size = 10 //the rating history size of a consumer (IT,WR,CR)
+
+
+/*Pseudocode d'un tour de boucle*/
+
+//Tour d'un consumer
+POUR chaque consumer :
+
+	//Test si le consumer dort
+	IF randomfloat(0,1) < consumer.alpha
+		pass
+	FINSI
+
+	//Exploration des providers
+	POUR chaque provider dans un rayon ro //(??) d'après l'article, possible de voir les providers plus loin mais baisse de performance.
+	
+		//Calcul de WR
+		//Hypothèses : Plus le voisin est proche du provider, plus il a des chances d'avoir l'info. Les agents aiment partager leurs informations
+		//Faire un parcours en largeur.
+		neighbour_list <- (nBF voisins de consumer les plus proche du provider)
+		TANTQUE neighbour_list non vide
+			neighbour <- neighbour_list[0]
+			
+			SI le voisin possède des ratings sur le provider 
+				viW <- ratings du voisin //liste (necessaire pour calcul de rdW)
+				wiW <- poids de rating	//liste
+				WR <- WR + wiW * viW
+				totwiW <- totwiW + wiW
+			FINSI
+				
+			closed_list <- closed_list + voisin
+			new_neighbour <- (nBF voisins de neighbour les plus proches du provider)
+			POUR n dans new_neighbour
+				SI n n'est pas dans closed_list
+					neighbour_list <- neighbour_list + n
+				FINSI
+			FINPOUR
+		FINTANTQUE
+		
+		WR <- WR / totwiW //Rating WR du provider
+		
+		//Calcul fiabilité de WR
+		rrW <- 1 - exp(-gammaW * totwiW) //Rating reliability du WR
+		rdW <- 1 - 0.5 * somme(wiW * abs(viW - WR))/totwiW //Rating deviation du WR
+		rmW <- rrW * rdW //Reliability measure pour WR
+		
+		//Calcul de CR
+		Voir IT
+		
+		//Calcul fiabilité de CR
+		Voir WR
+		
+		
+		//Evaluation des providers
+		SI rating_list non vide
+			//Calcul de IT
+			POUR chaque expérience avec le provider
+				viI <- ratings d interaction //liste
+				wiI <- exp(-(t_now - t_i)/lambda)	//liste
+				IT <- IT + wiI * viI
+				totwiI <- totwiI + wiI
+			FINPOUR
+			IT = IT / totwiI //Rating IT du provider
+			
+			//Calcul fiabilité de IT (en absence de la valeur de m, faire comme avec WR)
+			rrI = length(viI) / m //Rating reliability du IT
+			SI rrI > 1 
+				rrI = 1
+			FINSI
+			rdI <- 1 - 0.5 * somme(wiI * abs(viI - IT))/totwiI //Rating deviation du IT
+			rmI <- rrI * rdI //Reliability measure pour IT
+			
+			//Calcul de la confiance RB
+			// Non demandé car l'article. Askip l'article ne décrit pas assez comment implémenter cette composante.
+			POUR chaque règle entre consumer courant et provider courant 
+				viR <- expected performance //liste (necessaire pour calcul de rdW)
+				wiR <- niveau d'influence	//liste
+				RB <- RB + wiR * viR
+				totwiR <- totwiR + wiR
+				
+			FINPOUR
+			RB <- RB / totwiR //Rating WR du provider
+			
+			//Calcul fiabilité de WR
+			(??)rrR <- 1 - exp(-gammaW * totwiR) //Rating reliability du RB
+			(??)rdR <- 1 - 0.5 * somme(wiR * abs(viR - RB))/totwiR //Rating deviation du RB
+			rmR <- rrR * rdR //Reliability measure pour RB
+			
+			
+			//Calcul confiance globale
+			trust <- (ciI*rmI*IT + ciW*rmW*WR + ciR*rmR*RB + ciC*rmC*CR)/(ciI*rmI + ciW*rmW + ciR*rmR + ciC*rmC)
+			rmTrust <- (ciI*rmI + ciW*rmW + ciR*rmR + ciC*rmC)/(ciI + ciW + ciR + ciC)
+			
+			
+			SI trust > max_trust
+				max_trust <- trust
+				max_provider <- current_provider
+			FINSI
+			
+		SINON
+			Ajout dans la liste NoTrustValue
+		FINSI
+		
+	FINPOUR
+		
+	//Choix du provider
+	pchoice = 1 / ( 1 + exp(trust / T) ) //Hypothèse : L'utilité espérée d'un provider aléatoire vaut 0.
+	p <- randomfloat(0,1)
+	SI max_provider non nul et p > pchoice
+		provider <- max_provider
+	SINON
+		SI NoTrustValue non vide 
+			provider <- Choisir un provider de NoTrustValue aléatoirement
+		FINSI
+	FINSI
+	
+	//Interaction
+	rating <- (t, agent, provider, perf)
+	
+	rating_list <- rating
+	SI size(rating_list) > hist_size
+		Supprimer le dernier élément de la liste
+	FINSI
+	
+	SI rating.perf > min(provider_cr_list.perf) //Le provider sauvegarde ses meilleures performances (pour le CR)
+		provider_cr_list <- rating
+	FINSI
+	
+	sum_perf += perf
+	
+	T <- T - T_rate //Baisse de température
+	
+FINPOUR
+
+//Indicateur
+mean_utility <- sum_perf / nb_consumer
+
+//Mise à jour du monde
+// !!!! D'après les questions du TP, cela n'est pas demandé !!!!
+Remplacer au maximum 5% des consumers (dynamisme des consumers) 
+Remplacer au maximum 2% des providers (dynamisme des providers)
+Bouger chaque consumer avec 10% de chance
+Bouger chaque provider avec 10% de chance
+Changer les performances d'un provider avec 2% de chance
+
+
+/*Recommandations*/
+1) Pas besoin de faire SPORAS
+2) Ajout de paramètres supplémentaires en plus de ceux de l'article.
+Pour faire une analyse de sensibilité d'une variable = indicateur :
+-> Définir un horizon temporel T
+-> Nombre de réplication R=10 (minimum)
+-> Faire tourner le modèle pendant T ticks, répété R fois, donnant I.
+-> Is = moyenne(I) car modèle stochastique 
+
+3) Nombre de provider et consumer constant avec le renouvellement
+4) Déplacement sur une sphère et non un rectangle
+5) (p139) Initialisation des providers. 
