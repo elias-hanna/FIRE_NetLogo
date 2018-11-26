@@ -4,6 +4,13 @@ breed [providers provider]
 providers-own [ utility profile]
 consumers-own [ activityLevel NoTrustValue HasTrustValue ]
 
+globals [
+  UG
+  nb-active
+  lambda_dist
+  radius_operation
+]
+
 to-report GOOD
   report 0
 end
@@ -20,8 +27,17 @@ to-report BAD
   report 3
 end
 
+to setup-constants
+  set UG 0
+  set nb-active 0
+  set lambda_dist 1
+  set radius_operation 0.5
+end
+
 to setup
   clear-all
+  ;;setup the global utility
+  set UG 0
   ;;spawn the providers
   spawn-providers
   spawn-consumers number-of-consumers
@@ -30,16 +46,37 @@ to setup
 end
 
 to go
+  set UG 0
+  set nb-active 0
   ask consumers
   [
-    if random 101 < 11 [move]
+    ;; le consumer ne dort pas
+    if random 100 < activityLevel
+    [
+      set nb-active nb-active + 1
+
+      ifelse(any? HasTrustValue)
+      [
+      ]
+      [
+        let p chose-random
+        interact p
+      ]
+    ]
+  ]
+  set UG UG / nb-active
+
+  ask consumers
+  [
+    if random 100 < 10 [move]
     ;; renvoie le provider le plus proche du consumer dans un rayon de 10
     ;show min-one-of providers with [distance myself < vision] [distance myself]
   ]
   ask providers
   [
-    if random 101 < 11 [move]
-    if random 101 < 3 [swap-profile]
+    if random 100 < 10 [move]
+    if random 100 < 2 [swap-profile]
+    if random 100 < 10 [shift-mean]
   ]
   random-death-n-spawn consumer-death-n-spawn provider-death-n-spawn
   tick
@@ -104,11 +141,13 @@ to spawn-consumers [nb]
     random-pos
     set color blue + 2
     set activityLevel (random 76 + 25)
+    set NoTrustValue providers
+    set HasTrustValue no-turtles
   ]
 end
 
 to random-pos
-    let phi random 361
+    let phi random 360
     let theta random 181
     set xcor (radius * sin theta * cos phi)
     set ycor (radius * sin theta * sin phi)
@@ -230,6 +269,36 @@ to spawn-provider
     ]
   ]
 end
+
+to-report chose-random
+  report one-of NoTrustValue
+end
+
+to-report limit [u]
+  if u > 10
+  [
+   report 10
+  ]
+  if u < -10
+  [
+   report -10
+  ]
+
+end
+
+to interact [p]
+  let perf ([utility] of p)
+
+  if (distance p) > radius_operation
+  [
+    set perf (perf - ((distance p) - radius_operation) * lambda_dist)
+    set perf (limit perf)
+  ]
+
+  set UG (UG + perf)
+
+end
+
 ; Public Domain:
 ; To the extent possible under law, Uri Wilensky has waived all
 ; copyright and related or neighboring rights to this model.
