@@ -65,7 +65,7 @@ POUR chaque consumer :
 		
 		
 		//Evaluation des providers
-		SI rating_list non vide
+		SI rating_list contient des ratings de ce provider
 			//Calcul de IT
 			POUR chaque expérience avec le provider
 				viI <- ratings d interaction //liste
@@ -94,7 +94,7 @@ POUR chaque consumer :
 			FINPOUR
 			RB <- RB / totwiR //Rating WR du provider
 			
-			//Calcul fiabilité de WR
+			//Calcul fiabilité de RB
 			(??)rrR <- 1 - exp(-gammaW * totwiR) //Rating reliability du RB
 			(??)rdR <- 1 - 0.5 * somme(wiR * abs(viR - RB))/totwiR //Rating deviation du RB
 			rmR <- rrR * rdR //Reliability measure pour RB
@@ -169,3 +169,6 @@ Pour faire une analyse de sensibilité d'une variable = indicateur :
 3) Nombre de provider et consumer constant avec le renouvellement
 4) Déplacement sur une sphère et non un rectangle
 5) (p139) Initialisation des providers. 
+
+/*Hypothèses*/
+1) Utilités espérées : 
