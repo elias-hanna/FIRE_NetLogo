@@ -2,13 +2,13 @@ breed [consumers consumer]
 breed [providers provider]
 
 providers-own [ utility profile]
-consumers-own [ activityLevel NoTrustValue HasTrustValue ratingList ]
+consumers-own [ activityLevel noTrustValue hasTrustValue ratingList ]
 
 globals [
   UG
-  nb-active
-  lambda_dist
-  radius_operation
+  nbActive
+  lambdaDist
+  radiusOperation
 ]
 
 to-report GOOD
@@ -29,15 +29,16 @@ end
 
 to setup-constants
   set UG 0
-  set nb-active 0
-  set lambda_dist 1
-  set radius_operation 0.5
+  set nbActive 0
+  set lambdaDist 0.1
+  set radiusOperation 10
 end
 
 to setup
   clear-all
-  ;;setup the global utility
-  set UG 0
+  ;;setup constants
+  setup-constants
+
   ;;spawn the providers
   spawn-providers
   spawn-consumers number-of-consumers
@@ -47,15 +48,18 @@ end
 
 to go
   set UG 0
-  set nb-active 0
+  set nbActive 0
+
   ask consumers
   [
     ;; le consumer ne dort pas
     if random 100 < activityLevel
     [
-      set nb-active nb-active + 1
 
-      ifelse(any? HasTrustValue)
+
+      set nbActive nbActive + 1
+
+      ifelse(any? hasTrustValue)
       [
 
       ]
@@ -65,7 +69,7 @@ to go
       ]
     ]
   ]
-  set UG UG / nb-active
+  set UG UG / nbActive
 
   ask consumers
   [
@@ -312,13 +316,14 @@ end
 to interact [p]
   let perf ([utility] of p)
 
-  if (distance p) > radius_operation
+  if (distance p) > radiusOperation
   [
-    set perf (perf - ((distance p) - radius_operation) * lambda_dist)
+    set perf (perf - ((distance p) - radiusOperation) * lambdaDist)
     set perf (limit perf)
   ]
+
   set ratingList (lput (list ticks who ([who] of p) perf) ratingList)
-  show ratingList
+  ;;show ratingList
   set UG (UG + perf)
 
 end
@@ -591,7 +596,7 @@ provider-death-n-spawn
 provider-death-n-spawn
 0
 100
-2.0
+8.0
 1
 1
 NIL
@@ -675,6 +680,39 @@ false
 "" ""
 PENS
 "default" 1.0 0 -16777216 true "" "plot UG"
+
+SWITCH
+544
+197
+647
+230
+has_IT
+has_IT
+1
+1
+-1000
+
+SWITCH
+544
+236
+647
+269
+has_WR
+has_WR
+1
+1
+-1000
+
+SWITCH
+543
+277
+646
+310
+has_CR
+has_CR
+1
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?

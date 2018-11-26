@@ -157,18 +157,3 @@ Bouger chaque provider avec 10% de chance
 Changer les performances d'un provider avec 2% de chance
 
 
-/*Recommandations*/
-1) Pas besoin de faire SPORAS
-2) Ajout de paramètres supplémentaires en plus de ceux de l'article.
-Pour faire une analyse de sensibilité d'une variable = indicateur :
--> Définir un horizon temporel T
--> Nombre de réplication R=10 (minimum)
--> Faire tourner le modèle pendant T ticks, répété R fois, donnant I.
--> Is = moyenne(I) car modèle stochastique 
-
-3) Nombre de provider et consumer constant avec le renouvellement
-4) Déplacement sur une sphère et non un rectangle
-5) (p139) Initialisation des providers. 
-
-/*Hypothèses*/
-1) Utilités espérées : 

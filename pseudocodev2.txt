@@ -1,0 +1,120 @@
+/** Fonctions / procedures **/
+DEF get_trust_and_reliability( ratings ):
+	POUR chaque rating :
+		calcul des poids (formule de récence n°5 p131)
+
+	calcul de trust (formule n°1 p129)
+	calcul de la reliabiliy (formules n°2,n°3,n°4 p130) 
+FINDEF
+
+DEF dfs_neighbour(neighbour, depth):
+	SI depth >= 5 :
+		retour []
+	SINON :
+		closed_list <- closed_list + neighbour
+		
+		wr_ratings <- wr_ratings + [ratings de neighbour sur provider]
+		
+		new_neighbour <- [nBF voisins de neighbour les plus proches de provider]
+		POUR n dans new_neighbour :
+			SI n n'est pas dans closed_list :
+				dfs_neighbour(n, depth + 1)
+			FINSI
+		FINPOUR
+FINDEF
+
+/** Init Variables **/
+ro = ??//rayon d'operation d'un agent
+alpha = randomfloat(0.25:1) // taux d'activité d'un consumer
+lambda = -5/ln(0.5) // facteur de récence (formule n°5 p131)
+gammaW = -ln(0.5) // paramètre fonction de fiabilité (formule n°2 p130)
+nBF = 2 // branching factor pour le WR (p133)
+nRL = 5 // referal length pour le WR (p133)
+ciI = 2, ciW = 1, ciR = 2, ciC = 0.5 // component importance, dans le calcul final de confiance (formule n°6 et n°7 p136)
+hist_size = 10 //nombre maximal de ratings locaux d'un consumer
+
+/** Pseudocode d'un tour de boucle **/
+POUR chaque consumer actif:
+
+	POUR chaque provider :
+	
+		/* Calcul de WR */
+		/*
+		closed_list <- []
+		neighbour_list <- [nBF voisins proches]
+		depth, count <- 0, taille(neighbour_list)
+		TANTQUE neighbour_list non vide OU depth == nRL
+			neighbour <- neighbour_list[0]
+			neighbour_list <- neighbour_list[1:hist_size]
+			closed_list <- closed_list + neighbour
+			wr_ratings <- wr_ratings + [tous les ratings de neighbour sur provider]
+			new_neighbour <- [nBF voisins de neighbour les plus proches du provider]
+			neighbour_list <- [éléments de new_neighbour non présents dans closed_list]
+		FINTANTQUE
+		*/
+		
+		neighbour_list <- [nBF voisins de consumer les plus proches de provider]
+		closed_list <- []
+		wr_ratings <- dfs_neighbour(neighbour_list, depth = 0)		
+		[WR, rmWR] <- get_trust_and_reliability( wr_ratings )
+	
+		/* Calcul de CR */
+		cr_ratings <- [ratings du provider]
+		[CR, rmCR] <- get_trust_and_reliability( cr_ratings )
+		
+		/* Calcul de IT */
+		it_ratings <- [ratings du consumer sur le provider]
+		[IT, rmIT] <- get_trust_and_reliability( it_ratings )
+		
+		/* Calcul de RB */
+		
+		/* Rangement du provider */
+		SI it_ratings OU wr_ratings OU cr_ratings OU rb_rating non vide : 
+			HasProviderTrust <- HasProviderTrust + provider		
+			OT <- OT + {formule n°6 Overall Trust p136}
+			rmOT <- rmOT + {formule n°7 p136}
+			
+		SINON
+			NoTrustValue <- NoTrustValue + provider
+			
+	FINPOUR
+		
+	/* Choix du provider */
+	SI HasProviderTrust non vide :	
+		[best_provider,best_utility] <- find_best(HasProviderTrust, OT)
+		random_utility <- get_random_utility()
+		[proba_random] <- proba_boltzman(random_utility, best_utility)
+		
+		SI p > proba_random :
+			choosen_provider <- best_provider
+		
+	SINON :
+		choosen_provider <- random_provider
+	
+	/* Interaction */
+	rating_list <- rating_list + {t, agent, provider, perf}
+	
+	/* Historique limité */
+	SI taille(rating_list) > hist_size
+		Supprimer le plus vieux élément de la liste
+	FINSI
+	
+	/* Sauvegarde du rating côté provider */
+	choosen_provider.rating_list <- rating_list
+
+	
+	T <- T - T_rate
+	sum_perf += perf
+FINPOUR
+
+/* Indicateurs */
+mean_utility <- sum_perf / nb_active_consumer
+mean_rm(*) <- rm(*) / nb_active_consumer
+
+/* Mise à jour du monde */
+Remplacer au maximum 5% des consumers (dynamisme des consumers) 
+Remplacer au maximum 2% des providers (dynamisme des providers)
+Bouger chaque consumer avec 10% de chance
+Bouger chaque provider avec 10% de chance
+Changer les performances d'un provider avec 2% de chance
+
