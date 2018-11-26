@@ -2,7 +2,7 @@ breed [consumers consumer]
 breed [providers provider]
 
 providers-own [ utility profile]
-consumers-own [ activityLevel NoTrustValue HasTrustValue ]
+consumers-own [ activityLevel NoTrustValue HasTrustValue ratingList ]
 
 globals [
   UG
@@ -57,6 +57,7 @@ to go
 
       ifelse(any? HasTrustValue)
       [
+
       ]
       [
         let p chose-random
@@ -93,6 +94,27 @@ to move
   set ycor (radius * sin (theta + delta_theta) * sin (phi + delta_phi))
   set zcor (radius * cos (theta + delta_theta))
   ]
+end
+
+to update-trust-list
+  let memberList []
+  foreach ratingList
+  [
+    n ->
+    set memberList (lput (item 2 n) memberList)
+  ]
+  foreach ([who] of providers)
+  [
+    n ->
+    ifelse(member? n memberList)
+    [
+      set HasTrustValue (lput (turtle n) HasTrustValue)
+    ]
+    [
+      set NoTrustValue (lput (turtle n) NoTrustValue)
+    ]
+  ]
+
 end
 
 to spawn-providers
@@ -143,6 +165,7 @@ to spawn-consumers [nb]
     set activityLevel (random 76 + 25)
     set NoTrustValue providers
     set HasTrustValue no-turtles
+    set ratingList []
   ]
 end
 
@@ -294,7 +317,8 @@ to interact [p]
     set perf (perf - ((distance p) - radius_operation) * lambda_dist)
     set perf (limit perf)
   ]
-
+  set ratingList (lput (list ticks who ([who] of p) perf) ratingList)
+  show ratingList
   set UG (UG + perf)
 
 end
