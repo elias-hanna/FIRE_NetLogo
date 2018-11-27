@@ -70,18 +70,18 @@ POUR chaque consumer actif:
 		
 		/* Rangement du provider */
 		SI it_ratings OU wr_ratings OU cr_ratings OU rb_rating non vide : 
-			HasProviderTrust <- HasProviderTrust + provider		
+			hasTrustValue <- hasTrustValue + provider		
 			OT <- OT + {formule n°6 Overall Trust p136}
 			rmOT <- rmOT + {formule n°7 p136}
 			
 		SINON
-			NoTrustValue <- NoTrustValue + provider
+			noTrustValue <- noTrustValue + provider
 			
 	FINPOUR
 		
 	/* Choix du provider */
-	SI HasProviderTrust non vide :	
-		[best_provider,best_utility] <- find_best(HasProviderTrust, OT)
+	SI hasTrustValue non vide :	
+		[best_provider,best_utility] <- find_best(hasTrustValue, OT)
 		random_utility <- get_random_utility()
 		[proba_random] <- proba_boltzman(random_utility, best_utility)
 		

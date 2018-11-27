@@ -9,6 +9,16 @@ globals [
   nbActive
   lambdaDist
   radiusOperation
+  lambda
+  gammaI
+  gammaR
+  gammaW
+  gammaC
+
+  histSize
+  T
+  minT
+  deltaT
 ]
 
 to-report GOOD
@@ -32,6 +42,17 @@ to setup-constants
   set nbActive 0
   set lambdaDist 0.1
   set radiusOperation 10
+
+  set lambda -5 / ln 0.5
+  set gammaI (- ln 0.5)
+  set gammaR (- ln 0.5)
+  set gammaW (- ln 0.5)
+  set gammaC (- ln 0.5)
+
+  set histSize 10
+  set T 60
+  set minT 20
+  set deltaT 0.001
 end
 
 to setup
@@ -55,21 +76,97 @@ to go
     ;; le consumer ne dort pas
     if random 100 < activityLevel
     [
-
-
+      ;; quelques initialisations
       set nbActive nbActive + 1
+      set noTrustValue []
+      set hasTrustValue []
+      let OT 0
+      let rmOT 0
 
-      ifelse(any? hasTrustValue)
+
+      ;; on parcourt les providers de la carte
+      foreach [who] of providers
       [
+        providerId ->
+
+        let it_ratings []
+        let wr_ratings []
+        let cr_ratings []
+        let IT 0
+        let rmIT 0
+        let WR 0
+        let rmWR 0
+        let CR 0
+        let rmCR 0
+
+
+        ;;calcul de IT
+        if do_IT
+        [
+          set it_ratings (find-ratings ratingList 2 providerId)
+          let res (get-trust-and-reliability it_ratings)
+        ]
+
+        ;;calcul de WR
+        if do_WR
+        [
+        ]
+
+        ;;calcul de CR
+        if do_CR
+        [
+        ]
+
+        ifelse (empty? it_ratings) AND (empty? wr_ratings) AND (empty? cr_ratings)
+        [
+          ;;no available ratings (p138)
+          set noTrustValue lput (turtle providerId) noTrustValue
+        ]
+        [
+          ;;available ratings
+          set hasTrustValue lput (turtle providerId) hasTrustValue
+          let res (get-overall-trust-and-reliability IT rmIT) ;;fonction pour calculer l'OT
+          set OT item 0 res
+          set rmOT item 1 res
+        ]
 
       ]
+
+      ;;choix du provider
+      let choosenProvider nobody
+      ifelse(not (empty? hasTrustValue))
       [
-        let p chose-random
-        interact p
+        let res (find-best-provider hasTrustValue OT)
+        let bestProvider item 0 res
+        let bestUtility item 1 res
+        let randomUtility get-randomUtility
+        let probaRandom (proba-boltzman randomUtility bestUtility)
+
+        if random 100 > probaRandom
+        [
+          set choosenProvider bestProvider
+        ]
       ]
+      [
+       set choosenProvider one-of noTrustValue
+      ]
+
+      ;; interaction consumer - choosenProvider
+      let newRating interact choosenProvider
+
+      ;; sauvegarde côté consumer historique limité
+      set ratingList lput newRating ratingList
+      set ratingList (limit-list-size ratingList histSize)
+
+      ;;sauvegarde du rating côté provider
+      save-rating choosenProvider newRating
+
     ]
   ]
-  set UG UG / nbActive
+
+  set T (T - deltaT)
+
+  compute-measures
 
   ask consumers
   [
@@ -87,6 +184,143 @@ to go
   tick
 end
 
+to-report interact [p]
+  let perf ([utility] of p)
+
+  if (distance p) > radiusOperation
+  [
+    set perf (perf - ((distance p) - radiusOperation) * lambdaDist)
+    set perf (limit perf)
+  ]
+  set UG (UG + perf)
+
+  report (list ticks who ([who] of p) perf)
+end
+
+;; calcul des variables des figures
+to compute-measures
+  set UG UG / nbActive
+end
+
+;; pour le CR
+to save-rating [p rating]
+
+end
+
+to-report limit-list-size [myList maxSize]
+  if length myList > maxSize
+  [
+   set myList but-first myList
+  ]
+  report myList
+end
+
+to-report get-randomUtility
+  report 0
+end
+
+to-report proba-boltzman [utility1 utility2]
+  report 0
+end
+
+to-report find-best-provider [providerList utilities]
+  report (list 0 0)
+end
+
+to-report get-overall-trust-and-reliability [trusts rmTrusts]
+
+  report (list 0 0)
+end
+
+;; reports the ratings with the specified value on the specified index
+to-report find-ratings [ratings index value]
+  let memberList []
+  foreach ratings
+  [
+    r ->
+    if (item index r) = value
+    [
+      set memberList lput r memberList
+    ]
+  ]
+  report memberList
+end
+
+;; reports the trust and reliability of the rating list
+to-report get-trust-and-reliability [ratings]
+
+  ;; renvois des zéros s'il n'y a pas de ratings
+  if empty? ratings
+  [
+    report (list 0 0)
+  ]
+
+  ;;compute trust
+  let weights []
+  let trust 0
+  foreach ratings
+  [
+   r ->
+   set weights lput exp(-(ticks - (item 0 r)) / lambda) (weights)
+  ]
+  let sumWeights (sum weights)
+
+  let i 0
+  foreach ratings
+  [
+   r ->
+   set trust (trust + (item i weights) * (item 2 r))
+   set i (i + 1)
+  ]
+  set trust (trust / sumWeights)
+
+  ;;compute reliability
+  let rating-reliability (1 - exp( - gammaI * sumWeights))
+  let deviation-reliability 0
+  set i 0
+  foreach ratings
+  [
+    r ->
+    set deviation-reliability ( (item i weights) * (abs (item 2 r) - trust) )
+    set i (i + 1)
+  ]
+  set deviation-reliability (1 - (0.5 * deviation-reliability / sumWeights))
+
+  let reliability rating-reliability * deviation-reliability
+
+  ;;return both trust reliability
+  report (list trust reliability)
+
+end
+
+
+;;;;;;;;;;;;;;
+to-report chose-random
+  report one-of noTrustValue
+end
+
+to update-trust-list
+  ;; ne prend en compte que la composante de trust de IT
+  let memberList []
+  foreach ratingList
+  [
+    n ->
+    set memberList (lput (item 2 n) memberList)
+  ]
+  foreach ([who] of providers)
+  [
+    n ->
+    ifelse(member? n memberList)
+    [
+      set hasTrustValue (lput (turtle n) hasTrustValue)
+    ]
+    [
+      set noTrustValue (lput (turtle n) noTrustValue)
+    ]
+  ]
+end
+;;;;;;;;;;;;;;;
+
 to move
   let delta_phi (random (2 * delta_ang) - delta_ang)
   let delta_theta (random (2 * delta_ang) - delta_ang)
@@ -100,26 +334,18 @@ to move
   ]
 end
 
-to update-trust-list
-  let memberList []
-  foreach ratingList
+to-report limit [u]
+  if u > 10
   [
-    n ->
-    set memberList (lput (item 2 n) memberList)
+   report 10
   ]
-  foreach ([who] of providers)
+  if u < -10
   [
-    n ->
-    ifelse(member? n memberList)
-    [
-      set HasTrustValue (lput (turtle n) HasTrustValue)
-    ]
-    [
-      set NoTrustValue (lput (turtle n) NoTrustValue)
-    ]
+   report -10
   ]
-
+  report u
 end
+
 
 to spawn-providers
   ;;Creation des GOOD providers
@@ -167,8 +393,8 @@ to spawn-consumers [nb]
     random-pos
     set color blue + 2
     set activityLevel (random 76 + 25)
-    set NoTrustValue providers
-    set HasTrustValue no-turtles
+    set noTrustValue []
+    set hasTrustValue []
     set ratingList []
   ]
 end
@@ -297,36 +523,6 @@ to spawn-provider
   ]
 end
 
-to-report chose-random
-  report one-of NoTrustValue
-end
-
-to-report limit [u]
-  if u > 10
-  [
-   report 10
-  ]
-  if u < -10
-  [
-   report -10
-  ]
-  report u
-end
-
-to interact [p]
-  let perf ([utility] of p)
-
-  if (distance p) > radiusOperation
-  [
-    set perf (perf - ((distance p) - radiusOperation) * lambdaDist)
-    set perf (limit perf)
-  ]
-
-  set ratingList (lput (list ticks who ([who] of p) perf) ratingList)
-  ;;show ratingList
-  set UG (UG + perf)
-
-end
 
 ; Public Domain:
 ; To the extent possible under law, Uri Wilensky has waived all
@@ -686,8 +882,8 @@ SWITCH
 197
 647
 230
-has_IT
-has_IT
+do_IT
+do_IT
 1
 1
 -1000
@@ -697,8 +893,8 @@ SWITCH
 236
 647
 269
-has_WR
-has_WR
+do_WR
+do_WR
 1
 1
 -1000
@@ -708,8 +904,8 @@ SWITCH
 277
 646
 310
-has_CR
-has_CR
+do_CR
+do_CR
 1
 1
 -1000

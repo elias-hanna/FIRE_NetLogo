@@ -4,6 +4,11 @@ breed [testers tester]
 
 testers-own [mylist]
 
+globals[
+  a
+  b
+]
+
 to setup
   clear-all
 
@@ -51,7 +56,6 @@ to-report it [n1 n2 n3]
 
   report var
 end
-
 
 
 @#$#@#$#@
