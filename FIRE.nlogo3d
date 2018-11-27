@@ -16,9 +16,14 @@ globals [
   gammaC
 
   histSize
-  T
+  temperature
   minT
   deltaT
+
+  W_IT
+  W_WR
+  W_CR
+  W_RB
 ]
 
 to-report GOOD
@@ -50,9 +55,14 @@ to setup-constants
   set gammaC (- ln 0.5)
 
   set histSize 10
-  set T 60
+  set temperature 60
   set minT 20
   set deltaT 0.001
+
+  set W_IT 2
+  set W_WR 1
+  set W_CR 0.5
+  set W_RB 2
 end
 
 to setup
@@ -80,8 +90,8 @@ to go
       set nbActive nbActive + 1
       set noTrustValue []
       set hasTrustValue []
-      let OT 0
-      let rmOT 0
+      let OT []
+      let rmOT []
 
 
       ;; on parcourt les providers de la carte
@@ -105,6 +115,8 @@ to go
         [
           set it_ratings (find-ratings ratingList 2 providerId)
           let res (get-trust-and-reliability it_ratings)
+          set IT item 0 res
+          set rmIT item 1 res
         ]
 
         ;;calcul de WR
@@ -125,11 +137,10 @@ to go
         [
           ;;available ratings
           set hasTrustValue lput (turtle providerId) hasTrustValue
-          let res (get-overall-trust-and-reliability IT rmIT) ;;fonction pour calculer l'OT
-          set OT item 0 res
-          set rmOT item 1 res
+          let res (get-overall-trust-and-reliability (list IT WR CR) (list rmIT rmWR rmCR)) ;;fonction pour calculer l'OT
+          set OT lput (item 0 res) OT ;; liste des overall ratings
+          set rmOT lput (item 1 res) rmOT ;; liste de fiabilité des overall ratings
         ]
-
       ]
 
       ;;choix du provider
@@ -139,7 +150,7 @@ to go
         let res (find-best-provider hasTrustValue OT)
         let bestProvider item 0 res
         let bestUtility item 1 res
-        let randomUtility get-randomUtility
+        let randomUtility get-random-expected-reward
         let probaRandom (proba-boltzman randomUtility bestUtility)
 
         if random 100 > probaRandom
@@ -164,7 +175,7 @@ to go
     ]
   ]
 
-  set T (T - deltaT)
+  set temperature (temperature - deltaT)
 
   compute-measures
 
@@ -215,21 +226,43 @@ to-report limit-list-size [myList maxSize]
   report myList
 end
 
-to-report get-randomUtility
+;; calcul utilité espérée de l'action aléatoire
+to-report get-random-expected-reward
   report 0
 end
 
-to-report proba-boltzman [utility1 utility2]
-  report 0
+;; calcul de la probabilité du 1er argument avec fonctions de Boltzman
+to-report proba-boltzman [u1 u2]
+  let var1 exp(u1 / temperature)
+  let var2 exp(u2 / temperature)
+  report var1 / (var1 + var2)
 end
 
 to-report find-best-provider [providerList utilities]
-  report (list 0 0)
+  let umax (max utilities)
+  let pmax item (position umax utilities) providerList
+  report (list umax pmax)
 end
 
+;; formules (6) (7) p136
 to-report get-overall-trust-and-reliability [trusts rmTrusts]
+  let oTrust 0
+  let oReliability 0
+  let W_ (list W_IT W_WR W_CR)
+  let w []
 
-  report (list 0 0)
+  let i 0
+  foreach trusts
+  [
+   t ->
+   set w lput ((item i rmTrusts) * (item i W_)) w
+   set oTrust oTrust + (t * (item i w))
+   set i i + 1
+  ]
+  set oTrust (oTrust / (sum w))
+  set oReliability (sum w) / (sum W_)
+
+  report (list oTrust oReliability)
 end
 
 ;; reports the ratings with the specified value on the specified index
