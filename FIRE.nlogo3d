@@ -57,7 +57,7 @@ to setup-constants
   set histSize 10
   set temperature 60
   set minT 20
-  set deltaT 0.001
+  set deltaT 0.1
 
   set W_IT 2
   set W_WR 1
@@ -92,6 +92,8 @@ to go
       set hasTrustValue []
       let OT []
       let rmOT []
+      let IT 0
+      let rmIT 0
 
 
       ;; on parcourt les providers de la carte
@@ -102,8 +104,8 @@ to go
         let it_ratings []
         let wr_ratings []
         let cr_ratings []
-        let IT 0
-        let rmIT 0
+        set IT 0
+        set rmIT 0
         let WR 0
         let rmWR 0
         let CR 0
@@ -122,11 +124,13 @@ to go
         ;;calcul de WR
         if do_WR
         [
+
         ]
 
         ;;calcul de CR
         if do_CR
         [
+
         ]
 
         ifelse (empty? it_ratings) AND (empty? wr_ratings) AND (empty? cr_ratings)
@@ -137,11 +141,19 @@ to go
         [
           ;;available ratings
           set hasTrustValue lput (turtle providerId) hasTrustValue
+          show (list rmIT rmWR rmCR)
+          show (list IT WR CR)
           let res (get-overall-trust-and-reliability (list IT WR CR) (list rmIT rmWR rmCR)) ;;fonction pour calculer l'OT
           set OT lput (item 0 res) OT ;; liste des overall ratings
           set rmOT lput (item 1 res) rmOT ;; liste de fiabilité des overall ratings
         ]
+
+
       ]
+
+      ;show IT
+      ;show rmIT
+      ;show ratingList ;OK
 
       ;;choix du provider
       let choosenProvider nobody
@@ -151,15 +163,22 @@ to go
         let bestProvider item 0 res
         let bestUtility item 1 res
         let randomUtility get-random-expected-reward
-        let probaRandom (proba-boltzman randomUtility bestUtility)
 
-        if random 100 > probaRandom
+        ;show bestUtility
+        let probaRandom (proba-boltzman randomUtility bestUtility)
+        ifelse random 100 > probaRandom
         [
+          ;show "best"
           set choosenProvider bestProvider
+        ]
+        [
+          ;show "not best"
+          set choosenProvider one-of noTrustValue
         ]
       ]
       [
-       set choosenProvider one-of noTrustValue
+        ;show noTrustValue
+        set choosenProvider one-of noTrustValue
       ]
 
       ;; interaction consumer - choosenProvider
@@ -168,6 +187,7 @@ to go
       ;; sauvegarde côté consumer historique limité
       set ratingList lput newRating ratingList
       set ratingList (limit-list-size ratingList histSize)
+      ;show ratingList
 
       ;;sauvegarde du rating côté provider
       save-rating choosenProvider newRating
@@ -179,6 +199,11 @@ to go
 
   compute-measures
 
+  evolve-environment
+  tick
+end
+
+to evolve-environment
   ask consumers
   [
     if random 100 < 10 [move]
@@ -192,7 +217,6 @@ to go
     if random 100 < 10 [shift-mean]
   ]
   random-death-n-spawn consumer-death-n-spawn provider-death-n-spawn
-  tick
 end
 
 to-report interact [p]
@@ -205,7 +229,7 @@ to-report interact [p]
   ]
   set UG (UG + perf)
 
-  report (list ticks who ([who] of p) perf)
+  report (list ticks who ([who] of p) (perf / 10))
 end
 
 ;; calcul des variables des figures
@@ -238,10 +262,11 @@ to-report proba-boltzman [u1 u2]
   report var1 / (var1 + var2)
 end
 
+;; renvoi le meilleur couple provider / utilité des 2 listes en entrée
 to-report find-best-provider [providerList utilities]
   let umax (max utilities)
   let pmax item (position umax utilities) providerList
-  report (list umax pmax)
+  report (list pmax umax)
 end
 
 ;; formules (6) (7) p136
@@ -302,7 +327,7 @@ to-report get-trust-and-reliability [ratings]
   foreach ratings
   [
    r ->
-   set trust (trust + (item i weights) * (item 2 r))
+   set trust (trust + (item i weights) * (item 3 r))
    set i (i + 1)
   ]
   set trust (trust / sumWeights)
@@ -314,7 +339,7 @@ to-report get-trust-and-reliability [ratings]
   foreach ratings
   [
     r ->
-    set deviation-reliability ( (item i weights) * (abs (item 2 r) - trust) )
+    set deviation-reliability ( (item i weights) * (abs (item 3 r) - trust) )
     set i (i + 1)
   ]
   set deviation-reliability (1 - (0.5 * deviation-reliability / sumWeights))
@@ -917,7 +942,7 @@ SWITCH
 230
 do_IT
 do_IT
-1
+0
 1
 -1000
 
