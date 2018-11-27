@@ -943,7 +943,7 @@ true
 false
 "" ""
 PENS
-"default" 1.0 0 -16777216 true "" "plot nbActive"
+"default" 1.0 0 -16777216 true "" "plot item (ticks - 1) UG"
 
 SWITCH
 544
