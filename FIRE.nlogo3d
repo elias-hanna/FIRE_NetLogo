@@ -6,6 +6,7 @@ consumers-own [ activityLevel noTrustValue hasTrustValue ratingList ]
 
 globals [
   UG
+  UG-mes
   nbActive
   lambdaDist
   radiusOperation
@@ -43,7 +44,8 @@ to-report BAD
 end
 
 to setup-constants
-  set UG 0;mesures
+  set UG [];mesures
+  set UG-mes 0;mesures
   set nbActive 0;mesures
   set lambdaDist 0.1
   set radiusOperation 10
@@ -78,7 +80,7 @@ to setup
 end
 
 to go
-  set UG 0
+  set UG-mes 0
   set nbActive 0
 
   ask consumers
@@ -228,14 +230,14 @@ to-report interact [p]
     set perf (perf - ((distance p) - radiusOperation) * lambdaDist)
     set perf (limit perf)
   ]
-  set UG (UG + perf)
+  set UG-mes (UG-mes + perf)
 
   report (list (ticks) who ([who] of p) (perf / 10))
 end
 
 ;; calcul des variables des figures
 to compute-measures
-  set UG UG / nbActive
+  set UG lput (UG-mes / nbActive) UG
 end
 
 ;; pour le CR
@@ -941,7 +943,7 @@ true
 false
 "" ""
 PENS
-"default" 1.0 0 -16777216 true "" "plot UG"
+"default" 1.0 0 -16777216 true "" "plot nbActive"
 
 SWITCH
 544
