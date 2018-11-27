@@ -43,26 +43,26 @@ to-report BAD
 end
 
 to setup-constants
-  set UG 0
-  set nbActive 0
+  set UG 0;mesures
+  set nbActive 0;mesures
   set lambdaDist 0.1
   set radiusOperation 10
 
-  set lambda -5 / ln 0.5
-  set gammaI (- ln 0.5)
-  set gammaR (- ln 0.5)
-  set gammaW (- ln 0.5)
-  set gammaC (- ln 0.5)
+  set lambda -5 / ln 0.5;fixé
+  set gammaI (- ln 0.5);fixé
+  set gammaR (- ln 0.5);fixé
+  set gammaW (- ln 0.5);fixé
+  set gammaC (- ln 0.5);fixé
 
-  set histSize 10
-  set temperature 60
-  set minT 20
+  set histSize 10 ;fixé
+  set temperature 10
+  set minT 0.02
   set deltaT 0.1
 
-  set W_IT 2
-  set W_WR 1
-  set W_CR 0.5
-  set W_RB 2
+  set W_IT 2;fixé
+  set W_WR 1;fixé
+  set W_CR 0.5;fixé
+  set W_RB 2;fixé
 end
 
 to setup
@@ -94,7 +94,6 @@ to go
       let rmOT []
       let IT 0
       let rmIT 0
-
 
       ;; on parcourt les providers de la carte
       foreach [who] of providers
@@ -133,6 +132,7 @@ to go
 
         ]
 
+
         ifelse (empty? it_ratings) AND (empty? wr_ratings) AND (empty? cr_ratings)
         [
           ;;no available ratings (p138)
@@ -141,19 +141,17 @@ to go
         [
           ;;available ratings
           set hasTrustValue lput (turtle providerId) hasTrustValue
-          show (list rmIT rmWR rmCR)
-          show (list IT WR CR)
+
+          ;show (list "rm" rmIT rmWR rmCR)
+          ;show (list "C" IT WR CR)
           let res (get-overall-trust-and-reliability (list IT WR CR) (list rmIT rmWR rmCR)) ;;fonction pour calculer l'OT
           set OT lput (item 0 res) OT ;; liste des overall ratings
           set rmOT lput (item 1 res) rmOT ;; liste de fiabilité des overall ratings
+
+
         ]
 
-
       ]
-
-      ;show IT
-      ;show rmIT
-      ;show ratingList ;OK
 
       ;;choix du provider
       let choosenProvider nobody
@@ -164,9 +162,9 @@ to go
         let bestUtility item 1 res
         let randomUtility get-random-expected-reward
 
-        ;show bestUtility
         let probaRandom (proba-boltzman randomUtility bestUtility)
-        ifelse random 100 > probaRandom
+        ;show probaRandom
+        ifelse random 100 > (probaRandom * 100)
         [
           ;show "best"
           set choosenProvider bestProvider
@@ -195,7 +193,10 @@ to go
     ]
   ]
 
-  set temperature (temperature - deltaT)
+  if temperature > minT
+  [
+    set temperature temperature - deltaT * temperature
+  ]
 
   compute-measures
 
@@ -229,7 +230,7 @@ to-report interact [p]
   ]
   set UG (UG + perf)
 
-  report (list ticks who ([who] of p) (perf / 10))
+  report (list (ticks) who ([who] of p) (perf / 10))
 end
 
 ;; calcul des variables des figures
@@ -257,6 +258,8 @@ end
 
 ;; calcul de la probabilité du 1er argument avec fonctions de Boltzman
 to-report proba-boltzman [u1 u2]
+  ;show (list "u1:" u1 "u2:" u2)
+
   let var1 exp(u1 / temperature)
   let var2 exp(u2 / temperature)
   report var1 / (var1 + var2)
@@ -284,7 +287,10 @@ to-report get-overall-trust-and-reliability [trusts rmTrusts]
    set oTrust oTrust + (t * (item i w))
    set i i + 1
   ]
-  set oTrust (oTrust / (sum w))
+  if not (sum w = 0) ;avoid division by zero in case sum(w) = 0
+  [
+    set oTrust (oTrust / (sum w))
+  ]
   set oReliability (sum w) / (sum W_)
 
   report (list oTrust oReliability)
@@ -332,6 +338,7 @@ to-report get-trust-and-reliability [ratings]
   ]
   set trust (trust / sumWeights)
 
+
   ;;compute reliability
   let rating-reliability (1 - exp( - gammaI * sumWeights))
   let deviation-reliability 0
@@ -339,7 +346,7 @@ to-report get-trust-and-reliability [ratings]
   foreach ratings
   [
     r ->
-    set deviation-reliability ( (item i weights) * (abs (item 3 r) - trust) )
+    set deviation-reliability ( (item i weights) * (abs ( (item 3 r) - trust )) )
     set i (i + 1)
   ]
   set deviation-reliability (1 - (0.5 * deviation-reliability / sumWeights))
@@ -347,6 +354,7 @@ to-report get-trust-and-reliability [ratings]
   let reliability rating-reliability * deviation-reliability
 
   ;;return both trust reliability
+  ;show (list "weights : " weights "trust : " trust "pr :" rating-reliability "pd : " deviation-reliability "p : " reliability)
   report (list trust reliability)
 
 end
@@ -918,10 +926,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "histogram [utility] of providers"
 
 PLOT
-486
-426
-686
-576
+681
+157
+964
+370
 Global utility
 NIL
 NIL
@@ -967,6 +975,24 @@ do_CR
 1
 1
 -1000
+
+PLOT
+680
+376
+880
+526
+Temperature
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot temperature"
 
 @#$#@#$#@
 ## WHAT IS IT?
