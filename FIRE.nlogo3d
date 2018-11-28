@@ -15,6 +15,8 @@ globals [
   gammaR
   gammaW
   gammaC
+  nBF
+  maxDepth
 
   histSize
   temperature
@@ -25,6 +27,9 @@ globals [
   W_WR
   W_CR
   W_RB
+
+  closed_list
+  wr_list
 ]
 
 to-report GOOD
@@ -56,6 +61,9 @@ to setup-constants
   set gammaW (- ln 0.5);fixé
   set gammaC (- ln 0.5);fixé
 
+  set nBF 2
+  set maxDepth 5
+
   set histSize 10 ;fixé
   set temperature 10
   set minT 0.02
@@ -65,6 +73,9 @@ to setup-constants
   set W_WR 1;fixé
   set W_CR 0.5;fixé
   set W_RB 2;fixé
+
+  set closed_list no-turtles
+  set wr_list []
 end
 
 to setup
@@ -125,6 +136,7 @@ to go
         ;;calcul de WR
         if do_WR
         [
+          set wr_ratings dfs_neighbour self 0 providerId
 
         ]
 
@@ -204,6 +216,54 @@ to go
 
   evolve-environment
   tick
+end
+
+;; Deep first search to return wr_ratings
+to-report dfs_neighbour [n depth providerId]
+
+  if (depth > 4) [report []]
+  ;; Add consumer to closed list
+  set closed_list (turtle-set n closed_list)
+  ;; Check if the consumer has ratings of the provider and report it if so
+  let ret []
+  foreach ([ratingList] of n)
+  [
+    r ->
+    if ((item 2 r) = providerId)
+    [
+      set ret (lput r ret)
+    ]
+  ]
+  if(not empty? ret)
+  [
+    report ret
+;    foreach ret
+;    [
+;      t ->
+;      report wr_list (sentence t wr_list)
+;    ]
+  ]
+
+  ;; The current consumer has no ratings to give so it asks to his acquaintances
+
+  let neighbour_list []
+  ;; Neighbours in radiusOperation on a sphere
+  set neighbour_list (consumers with [(2 * asin( (distance myself) / (2 * radius)) * radius * pi / 180) < radiusOperation])
+  ;; Neighbours sorted by proximity to provider
+  set neighbour_list (sort-on [distance (turtle providerId)] neighbour_list)
+  ;; agentSet of nBF nearest neighbours of provider
+  set neighbour_list (sublist neighbour_list 0 nBF)
+  ;; Report rating of agent + recursivily other ratings
+
+  foreach neighbour_list
+  [
+    v ->
+    if(not (member? v closed_list ))
+    [
+      set ret (sentence (dfs_neighbour v (depth + 1) providerId) ret)
+    ]
+  ]
+  report ret
 end
 
 to evolve-environment
@@ -535,7 +595,7 @@ to shift-mean
 end
 
 to spawn-provider
-  ifelse (count providers with [profile = GOOD] < 10)
+  ifelse (count providers with [profile = GOOD] < 0.1 * number-of-providers)
   [
     ;;Creating a GOOD provider
     create-providers 1
@@ -548,7 +608,7 @@ to spawn-provider
     ]
   ]
   [
-    ifelse (count providers with [profile = ORDINARY] < 40)
+    ifelse (count providers with [profile = ORDINARY] < 0.4 * number-of-providers)
     [
       ;;Creating a ORDINARY provider
       create-providers 1
@@ -562,7 +622,7 @@ to spawn-provider
     ]
     [
       ;;Creating a BAD provider
-      ifelse (count providers with [profile = BAD] < 45)
+      ifelse (count providers with [profile = BAD] < 0.45 * number-of-providers)
       [
         create-providers 1
         [
@@ -574,7 +634,7 @@ to spawn-provider
         ]
       ]
       [
-        if (count providers with [profile = INTERMITTENT] < 5)
+        if (count providers with [profile = INTERMITTENT] < 0.05 * number-of-providers)
         [
           ;;Creating an INTERMITTENT provider
           create-providers 1
@@ -634,7 +694,7 @@ number-of-consumers
 number-of-consumers
 100
 500
-500.0
+100.0
 400
 1
 NIL
@@ -720,7 +780,7 @@ number-of-providers
 number-of-providers
 20
 100
-100.0
+20.0
 80
 1
 NIL
@@ -752,7 +812,7 @@ max-death-per-tick
 max-death-per-tick
 2
 10
-2.0
+10.0
 8
 1
 NIL
@@ -767,7 +827,7 @@ max-spawn-per-tick
 max-spawn-per-tick
 2
 10
-2.0
+10.0
 8
 1
 NIL
@@ -815,7 +875,7 @@ delta_ang
 delta_ang
 0
 20
-9.0
+4.0
 1
 1
 NIL
@@ -845,7 +905,7 @@ consumer-death-n-spawn
 consumer-death-n-spawn
 0
 100
-5.0
+10.0
 1
 1
 NIL
@@ -860,7 +920,7 @@ provider-death-n-spawn
 provider-death-n-spawn
 0
 100
-8.0
+14.0
 1
 1
 NIL
@@ -952,7 +1012,7 @@ SWITCH
 230
 do_IT
 do_IT
-0
+1
 1
 -1000
 
@@ -963,7 +1023,7 @@ SWITCH
 269
 do_WR
 do_WR
-1
+0
 1
 -1000
 
