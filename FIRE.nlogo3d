@@ -241,6 +241,7 @@ to-report dfs_neighbour [n depth providerId]
   if (depth > 4) [report []]
   ;; Add consumer to closed list
   set closed_list (turtle-set n closed_list)
+
   ;; Check if the consumer has ratings of the provider and report it if so
   let ret []
 
@@ -255,7 +256,6 @@ to-report dfs_neighbour [n depth providerId]
   ]
 
   ;; The current consumer has no ratings to give so it asks to his acquaintances
-
   let neighbour_list []
   ;; Neighbours in radiusOperation on a sphere
   ;set neighbour_list (consumers with [(2 * asin( (distance myself) / (2 * radius)) * radius * pi / 180) < radiusOperation])
@@ -305,8 +305,6 @@ to evolve-environment
   ask consumers
   [
     if random 100 < 10 [move]
-    ;; renvoie le provider le plus proche du consumer dans un rayon de 10
-    ;show min-one-of providers with [distance myself < vision] [distance myself]
   ]
   ask providers
   [
@@ -903,21 +901,6 @@ PENS
 "utility" 1.0 0 -16777216 true "" "histogram [profile] of providers "
 
 SLIDER
-421
-37
-593
-70
-vision
-vision
-0
-100
-10.0
-1
-1
-NIL
-HORIZONTAL
-
-SLIDER
 420
 76
 592
@@ -933,10 +916,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-601
-77
-773
-110
+419
+35
+591
+68
 radius
 radius
 0
@@ -956,7 +939,7 @@ consumer-death-n-spawn
 consumer-death-n-spawn
 0
 100
-10.0
+5.0
 1
 1
 NIL
@@ -971,7 +954,7 @@ provider-death-n-spawn
 provider-death-n-spawn
 0
 100
-14.0
+2.0
 1
 1
 NIL
