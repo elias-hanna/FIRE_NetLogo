@@ -54,8 +54,8 @@ to setup-constants
   set UG [];mesures
   set UG-mes 0;mesures
   set nbActive 0;mesures
-  set lambdaDist 5
-  set radiusOperation 5
+  set lambdaDist 1
+  set radiusOperation 10
 
   set lambda -5 / ln 0.5;fixé
   set gammaI (- ln 0.5);fixé
@@ -147,7 +147,16 @@ to go
         ;;calcul de CR
         if do_CR
         [
-          set cr_ratings ([pRatingList] of turtle providerId)
+          ;;skip ratings from current simulation turn
+          foreach ([pRatingList] of turtle providerId)
+          [
+            r ->
+            if (item 0 r) != ticks
+            [
+              set cr_ratings (lput r cr_ratings)
+            ]
+          ]
+
           let res (get-trust-and-reliability cr_ratings)
           set CR item 0 res
           set rmCR item 1 res
@@ -169,7 +178,7 @@ to go
           set rmOT lput (item 1 res) rmOT ;; liste de fiabilité des overall ratings
         ]
       ]
-
+      reset-timer
       ;;choix du provider
       let choosenProvider nobody
       ifelse(not (empty? hasTrustValue))
@@ -219,7 +228,7 @@ to go
   if DYNAMIC_ENV [evolve-environment]
   tick
   if ticks = simuTicks [
-    export-measures
+    if save_simulation [export-measures]
     stop
   ]
 end
@@ -227,29 +236,41 @@ end
 ;; Deep first search to return wr_ratings
 to-report dfs_neighbour [n depth providerId]
 
+  let NREP 100000
+
   if (depth > 4) [report []]
   ;; Add consumer to closed list
   set closed_list (turtle-set n closed_list)
   ;; Check if the consumer has ratings of the provider and report it if so
   let ret []
-  set ret (find-ratings ([ratingList] of n) 2 providerId)
+
+  show "beginother"
+  repeat NREP [set ret (find-ratings ([ratingList] of n) 2 providerId)]
+  show "finished 0"
+
+
   if(not empty? ret)
   [
     report ret
-;    foreach ret
-;    [
-;      t ->
-;      report wr_list (sentence t wr_list)
-;    ]
   ]
 
   ;; The current consumer has no ratings to give so it asks to his acquaintances
 
   let neighbour_list []
   ;; Neighbours in radiusOperation on a sphere
-  set neighbour_list (consumers with [(2 * asin( (distance myself) / (2 * radius)) * radius * pi / 180) < radiusOperation])
+  ;set neighbour_list (consumers with [(2 * asin( (distance myself) / (2 * radius)) * radius * pi / 180) < radiusOperation])
+
+
+  show "begin"
+  repeat NREP [set neighbour_list ( consumers with [toSpherical (distance myself) < radiusOperation])]
+  show "finished 1"
+
+  let nlist neighbour_list
+
   ;; Neighbours sorted by proximity to provider
-  set neighbour_list (sort-on [distance (turtle providerId)] neighbour_list)
+  repeat NREP [set neighbour_list (sort-on [distance (turtle providerId)] nlist)]
+  show "finished 2"
+
   ;; agentSet of nBF nearest neighbours of provider
   if (length neighbour_list) >= nBF
   [
@@ -271,7 +292,7 @@ end
 
 ;; converts cartesian distance to spherical distance
 to-report toSpherical [dist]
-  report abs(2 * asin(dist / (2 * radius)) * pi / 180)
+  report abs(2 * radius * asin(dist / (2 * radius)) * pi / 180)
 end
 
 ;; calcul utilité espérée de l'action aléatoire à partir des utlités des providers observés (p138)
@@ -724,7 +745,7 @@ number-of-consumers
 number-of-consumers
 100
 500
-100.0
+500.0
 400
 1
 NIL
@@ -810,7 +831,7 @@ number-of-providers
 number-of-providers
 20
 100
-20.0
+100.0
 80
 1
 NIL
@@ -1094,6 +1115,17 @@ SWITCH
 DYNAMIC_ENV
 DYNAMIC_ENV
 1
+1
+-1000
+
+SWITCH
+525
+361
+668
+394
+save_simulation
+save_simulation
+0
 1
 -1000
 
