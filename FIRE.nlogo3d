@@ -452,7 +452,7 @@ end
 
 ;; calcul des variables des figures
 to compute-measures
-  show (list "UG-tot:" UG-mes "nbActive:" nbActive)
+  ;show (list "UG-tot:" UG-mes "nbActive:" nbActive)
   set UG lput (UG-mes / nbActive) UG
 
 end
@@ -1179,7 +1179,7 @@ SWITCH
 269
 do_WR
 do_WR
-0
+1
 1
 -1000
 
@@ -1230,7 +1230,7 @@ SWITCH
 394
 save_simulation
 save_simulation
-1
+0
 1
 -1000
 
