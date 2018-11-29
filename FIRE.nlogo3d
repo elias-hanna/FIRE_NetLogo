@@ -30,6 +30,7 @@ globals [
   W_CR
   W_RB
 
+  openList
   closed_list
   simuTicks
 ]
@@ -77,6 +78,7 @@ to setup-constants
   set W_RB 2;fixé
 
   set closed_list no-turtles
+  set openList no-turtles
   set simuTicks 200
 end
 
@@ -136,13 +138,19 @@ to go
         ]
 
         ;;calcul de WR
-        if do_WR
+        if do_WR AND ticks > 0
         [
-          set wr_ratings dfs_neighbour self 0 providerId
+          set openList sort-set-distance-to-agent consumers (turtle providerId) ;takes a lot of time
+          set closed_list []
+          ifelse (WR_verbose) [show "in" set wr_ratings dfs_neighbour_verbose self 0 providerId show "out"]
+          [set wr_ratings dfs_neighbour self 0 providerId]
+          ;if providerId < 8 [show (list "out : " wr_ratings)]
+
           let res (get-trust-and-reliability wr_ratings)
           set WR item 0 res
           set rmWR item 1 res
         ]
+
 
         ;;calcul de CR
         if do_CR
@@ -162,6 +170,7 @@ to go
           set rmCR item 1 res
         ]
 
+        ;; build noTrustValue and hasTrustValue lists
         ifelse (empty? it_ratings) AND (empty? wr_ratings) AND (empty? cr_ratings)
         [
           ;;no available ratings (p138)
@@ -233,23 +242,129 @@ to go
   ]
 end
 
+;; gives the list of agent in agentset sorted by distance to the target
+to-report sort-set-distance-to-agent [agentSet target]
+  let sortedList sort-on [distance target] agentSet
+  report sortedList
+end
+
 ;; Deep first search to return wr_ratings
 to-report dfs_neighbour [n depth providerId]
 
-  let NREP 100000
-
-  if (depth > 4) [report []]
   ;; Add consumer to closed list
   set closed_list (turtle-set n closed_list)
 
   ;; Check if the consumer has ratings of the provider and report it if so
   let ret []
+  set ret (find-ratings ([ratingList] of n) 2 providerId)
+  if(not empty? ret) OR (depth >= 4)
+  [
+    report ret
+  ]
 
-  show "beginother"
-  repeat NREP [set ret (find-ratings ([ratingList] of n) 2 providerId)]
-  show "finished 0"
+  ;; Find the nBF provider's nearest consumers in the range of the current consumer
+  let neighbour_list []
+  let countCons 0
+  let i 0
+  while [(countCons < 2) AND (i < length(openList))]
+  [
+    ask n [
+      ;; Only add consumer in radius radiusOperation, and not in closed_list
+      if (toSpherical (distance (item i openList))  < radiusOperation) AND (not member? (item i openList) (closed_list))
+      [
+        set closed_list (turtle-set (item i openList) closed_list)
+        set neighbour_list (lput (item i openList) neighbour_list)
+        ;set neighbour_list (remove-item i openList)
+        set countCons (countCons + 1)
+      ]
+      set i (i + 1)
+    ]
+  ]
+
+  ;; Report rating of agent + recursivily other ratings
+  foreach neighbour_list
+  [
+    v ->
+    let res (dfs_neighbour v (depth + 1) providerId)
+    set ret (sentence res ret)
+  ]
+  report ret
+end
+
+;; Deep first search to return wr_ratings
+to-report dfs_neighbour_verbose [n depth providerId]
+
+  show (list "Entering dfs_neighbour : " n "," depth)
+
+  ;; Add consumer to closed list
+  set closed_list (turtle-set n closed_list)
+
+  ;; Check if the consumer has ratings of the provider and report it if so
+  let ret []
+  set ret (find-ratings ([ratingList] of n) 2 providerId)
+  if(not empty? ret) OR (depth >= 4)
+  [
+    if (depth >= 4) [show (list "Exiting depth : " n)]
+    show (list "Exiting rating : " n "," ret)
+    report ret
+  ]
+
+  show ("Finding neighbours")
+  let neighbour_list []
+
+  ;; The current consumer has no ratings to give so it asks to his acquaintances
+
+  ;;Find the nearest consumers to provider in the range of the current consumer
+  let countCons 0
+  let i 0
+  ;show (list "parent :" self "current node : " n)
+  while [(countCons < 2) AND (i < length(openList))]
+  [
+
+    ;ask (turtle providerId) [show (list "Distance : " (toSpherical distance (item i openList)))  ]
+
+    ask n [
+
+      if (toSpherical (distance (item i openList))  < radiusOperation) AND (not member? (item i openList) (closed_list))
+      [
+        set closed_list (turtle-set (item i openList) closed_list)
+        set neighbour_list (lput (item i openList) neighbour_list)
+        ;set neighbour_list (remove-item i openList)
+        set countCons (countCons + 1)
+      ]
+      set i (i + 1)
+    ]
+  ]
+  ;show (list "neigh:" neighbour_list "depth:" depth)
+
+  ;show depth
+  ;show neighbour_list
+
+  ;; Report rating of agent + recursivily other ratings
+  show (list "Calling neighbours" neighbour_list)
+  foreach neighbour_list
+  [
+    v ->
+    let res (dfs_neighbour_verbose v (depth + 1) providerId)
+    set ret (sentence res ret)
+    show (list "Exiting one node " v "," ret)
+  ]
+  show (list "Exiting full node " n )
+  report ret
+end
 
 
+;; Deep first search to return wr_ratings
+to-report dfs_neighbour_old [n depth providerId]
+
+  if (depth > 4) [report []]
+
+  ;; Add consumer to closed list
+  set closed_list (turtle-set n closed_list)
+
+  ;; Check if the consumer has ratings of the provider and report it if so
+  let ret []
+  set ret (find-ratings ([ratingList] of n) 2 providerId)
   if(not empty? ret)
   [
     report ret
@@ -257,21 +372,14 @@ to-report dfs_neighbour [n depth providerId]
 
   ;; The current consumer has no ratings to give so it asks to his acquaintances
   let neighbour_list []
+
   ;; Neighbours in radiusOperation on a sphere
-  ;set neighbour_list (consumers with [(2 * asin( (distance myself) / (2 * radius)) * radius * pi / 180) < radiusOperation])
+  set neighbour_list ( consumers with [toSpherical (distance myself) < radiusOperation])
 
+  ;; Nearby neighbours sorted by proximity to provider
+  set neighbour_list (sort-on [distance (turtle providerId)] neighbour_list)
 
-  show "begin"
-  repeat NREP [set neighbour_list ( consumers with [toSpherical (distance myself) < radiusOperation])]
-  show "finished 1"
-
-  let nlist neighbour_list
-
-  ;; Neighbours sorted by proximity to provider
-  repeat NREP [set neighbour_list (sort-on [distance (turtle providerId)] nlist)]
-  show "finished 2"
-
-  ;; agentSet of nBF nearest neighbours of provider
+  ; agentSet of nBF nearest neighbours of provider
   if (length neighbour_list) >= nBF
   [
     set neighbour_list (sublist neighbour_list 0 nBF)
@@ -281,14 +389,14 @@ to-report dfs_neighbour [n depth providerId]
   foreach neighbour_list
   [
     v ->
+
     if(not (member? v closed_list ))
     [
-      set ret (sentence (dfs_neighbour v (depth + 1) providerId) ret)
+      set ret (sentence (dfs_neighbour_old v (depth + 1) providerId) ret)
     ]
   ]
   report ret
 end
-
 
 ;; converts cartesian distance to spherical distance
 to-report toSpherical [dist]
@@ -939,7 +1047,7 @@ consumer-death-n-spawn
 consumer-death-n-spawn
 0
 100
-5.0
+4.0
 1
 1
 NIL
@@ -954,7 +1062,7 @@ provider-death-n-spawn
 provider-death-n-spawn
 0
 100
-2.0
+0.0
 1
 1
 NIL
@@ -1057,7 +1165,7 @@ SWITCH
 269
 do_WR
 do_WR
-1
+0
 1
 -1000
 
@@ -1108,7 +1216,18 @@ SWITCH
 394
 save_simulation
 save_simulation
-0
+1
+1
+-1000
+
+SWITCH
+661
+70
+795
+103
+WR_VERBOSE
+WR_VERBOSE
+1
 1
 -1000
 

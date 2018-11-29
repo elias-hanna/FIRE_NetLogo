@@ -23,6 +23,15 @@ DEF dfs_neighbour(neighbour, depth):
 		FINPOUR
 FINDEF
 
+/** nBF voisins de neighbour **/
+POUR chaque provider
+	open_list <- Liste des consommateurs par ordre de proximité
+	
+	(dans dfs)
+	new_neighbour <- Liste des consommateurs dans un rayon de ro
+	
+
+
 /** Init Variables **/
 ro = ??//rayon d'operation d'un agent
 alpha = randomfloat(0.25:1) // taux d'activité d'un consumer
