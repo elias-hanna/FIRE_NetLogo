@@ -3,7 +3,7 @@ extensions [csv]
 breed [consumers consumer]
 breed [providers provider]
 
-providers-own [ utility profile pRatingList ]
+providers-own [ utility profile pRatingList nearestConsumers ]
 consumers-own [ activityLevel noTrustValue hasTrustValue ratingList ]
 
 globals [
@@ -68,7 +68,7 @@ to setup-constants
   set maxDepth 5
 
   set histSize 10 ;fixé
-  set temperature 10
+  set temperature 1
   set minT 0.02
   set deltaT 0.1
 
@@ -90,6 +90,18 @@ to setup
   ;;spawn the providers
   spawn-providers
   spawn-consumers number-of-consumers
+
+  ;;if environment is static, we can compute nearest consumers for all providers beforehand
+  if not DYNAMIC_ENV
+  [
+    ask providers
+    [
+      set nearestConsumers sort-set-distance-to-agent consumers (turtle who) ;takes a lot of time
+      ;show (list "id:" who ", near:" nearestConsumers)
+    ]
+
+  ]
+
   update-plots
   reset-ticks
 end
@@ -140,7 +152,8 @@ to go
         ;;calcul de WR
         if do_WR AND ticks > 0
         [
-          set openList sort-set-distance-to-agent consumers (turtle providerId) ;takes a lot of time
+          ifelse DYNAMIC_ENV [set openList sort-set-distance-to-agent consumers (turtle providerId)]
+          [set openList [nearestConsumers] of (turtle providerId)]
           set closed_list []
           ifelse (WR_verbose) [show "in" set wr_ratings dfs_neighbour_verbose self 0 providerId show "out"]
           [set wr_ratings dfs_neighbour self 0 providerId]
@@ -439,6 +452,7 @@ end
 
 ;; calcul des variables des figures
 to compute-measures
+  show (list "UG-tot:" UG-mes "nbActive:" nbActive)
   set UG lput (UG-mes / nbActive) UG
 
 end
