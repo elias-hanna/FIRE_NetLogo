@@ -1,9 +1,13 @@
-extensions [csv]
+extensions [csv profiler]
 
 breed [consumers consumer]
 breed [providers provider]
 
-providers-own [ utility profile pRatingList nearestConsumers ]
+providers-own [ utility
+  profile
+  pRatingList
+  nearestConsumers ;list of (consumer,distanceToProvider)
+]
 consumers-own [ activityLevel noTrustValue hasTrustValue ratingList ]
 
 globals [
@@ -78,12 +82,17 @@ to setup-constants
   set W_RB 2;fixé
 
   set closed_list no-turtles
-  set openList no-turtles
+  set openList []
   set simuTicks 200
 end
 
 to setup
   clear-all
+
+  ;;PROFILER
+  profiler:reset
+  profiler:start
+
   ;;setup constants
   setup-constants
 
@@ -91,15 +100,19 @@ to setup
   spawn-providers
   spawn-consumers number-of-consumers
 
-  ;;if environment is static, we can compute nearest consumers for all providers beforehand
-  if not DYNAMIC_ENV
+  ;;set some information about each provider
+  ask providers
   [
-    ask providers
+    set nearestConsumers []
+    let res sort-set-distance-to-agent consumers (turtle who)
+    foreach res
     [
-      set nearestConsumers sort-set-distance-to-agent consumers (turtle who) ;takes a lot of time
-      ;show (list "id:" who ", near:" nearestConsumers)
-    ]
+      c ->
+      set nearestConsumers (lput (list c (distance c)) nearestConsumers)
 
+    ]
+    ;show (list "id:" who ", near:" nearestConsumers)
+    ;set nearestConsumers sort-set-distance-to-agent consumers (turtle who)  ;takes a lot of time
   ]
 
   update-plots
@@ -107,6 +120,8 @@ to setup
 end
 
 to go
+  if ticks < 1 [reset-timer ];time measurements
+
   set UG-mes 0
   set nbActive 0
 
@@ -152,12 +167,11 @@ to go
         ;;calcul de WR
         if do_WR AND ticks > 0
         [
-          ifelse DYNAMIC_ENV [set openList sort-set-distance-to-agent consumers (turtle providerId)]
-          [set openList [nearestConsumers] of (turtle providerId)]
+          set openList [nearestConsumers] of (turtle providerId)
           set closed_list []
-          ifelse (WR_verbose) [show "in" set wr_ratings dfs_neighbour_verbose self 0 providerId show "out"]
-          [set wr_ratings dfs_neighbour self 0 providerId]
-          ;if providerId < 8 [show (list "out : " wr_ratings)]
+
+          set wr_ratings dfs_neighbour self 0 providerId
+          if WR_verbose [show "-OUT-"]
 
           let res (get-trust-and-reliability wr_ratings)
           set WR item 0 res
@@ -200,7 +214,6 @@ to go
           set rmOT lput (item 1 res) rmOT ;; liste de fiabilité des overall ratings
         ]
       ]
-      reset-timer
       ;;choix du provider
       let choosenProvider nobody
       ifelse(not (empty? hasTrustValue))
@@ -209,9 +222,8 @@ to go
         let bestProvider item 0 res
         let bestUtility item 1 res
         let randomUtility (get-random-expected-reward OT)
-        ;show randomUtility
+
         let probaRandom (proba-boltzman randomUtility bestUtility)
-        ;show probaRandom
         ifelse random 100 > (probaRandom * 100) OR (empty? noTrustValue)
         [
           ;show "best"
@@ -237,7 +249,6 @@ to go
 
       ;;sauvegarde du rating côté provider
       save-rating choosenProvider newRating
-
     ]
   ]
 
@@ -251,7 +262,27 @@ to go
   tick
   if ticks = simuTicks [
     if save_simulation [export-measures]
+    profiler:stop
+    print profiler:report
     stop
+  ]
+
+  show (word "Execution time : " timer)
+end
+
+to set-providers-nearest-consumers
+  ask providers
+  [
+    set nearestConsumers []
+    let res sort-set-distance-to-agent consumers (turtle who)
+    foreach res
+    [
+      c ->
+      set nearestConsumers (lput (list c (distance c)) nearestConsumers)
+
+    ]
+    ;show (list "id:" who ", near:" nearestConsumers)
+    ;set nearestConsumers sort-set-distance-to-agent consumers (turtle who)  ;takes a lot of time
   ]
 end
 
@@ -264,6 +295,8 @@ end
 ;; Deep first search to return wr_ratings
 to-report dfs_neighbour [n depth providerId]
 
+  if WR_VERBOSE [show (list "Entering dfs_neighbour : " n "," depth "," providerId)]
+
   ;; Add consumer to closed list
   set closed_list (turtle-set n closed_list)
 
@@ -272,22 +305,25 @@ to-report dfs_neighbour [n depth providerId]
   set ret (find-ratings ([ratingList] of n) 2 providerId)
   if(not empty? ret) OR (depth >= 4)
   [
+    if WR_VERBOSE [show (list "Exiting rating : " n "," ret)]
     report ret
   ]
 
   ;; Find the nBF provider's nearest consumers in the range of the current consumer
+  if WR_VERBOSE [show ("Finding neighbours")]
   let neighbour_list []
   let countCons 0
   let i 0
   while [(countCons < 2) AND (i < length(openList))]
   [
     ask n [
+      let cons (item 0 (item i openList))
+
       ;; Only add consumer in radius radiusOperation, and not in closed_list
-      if (toSpherical (distance (item i openList))  < radiusOperation) AND (not member? (item i openList) (closed_list))
+      if ( (item 1 (item i openList))  < radiusOperation) AND (not member? cons (closed_list))
       [
-        set closed_list (turtle-set (item i openList) closed_list)
-        set neighbour_list (lput (item i openList) neighbour_list)
-        ;set neighbour_list (remove-item i openList)
+        set closed_list (turtle-set cons closed_list)
+        set neighbour_list (lput cons neighbour_list)
         set countCons (countCons + 1)
       ]
       set i (i + 1)
@@ -295,79 +331,19 @@ to-report dfs_neighbour [n depth providerId]
   ]
 
   ;; Report rating of agent + recursivily other ratings
+  if WR_VERBOSE [show (list "Calling neighbours" neighbour_list)]
   foreach neighbour_list
   [
     v ->
     let res (dfs_neighbour v (depth + 1) providerId)
     set ret (sentence res ret)
+    if WR_VERBOSE [show (list "Exiting one node " v "," ret)]
   ]
+  if WR_VERBOSE [show (list "Exiting full node " n )]
   report ret
 end
 
-;; Deep first search to return wr_ratings
-to-report dfs_neighbour_verbose [n depth providerId]
-
-  show (list "Entering dfs_neighbour : " n "," depth)
-
-  ;; Add consumer to closed list
-  set closed_list (turtle-set n closed_list)
-
-  ;; Check if the consumer has ratings of the provider and report it if so
-  let ret []
-  set ret (find-ratings ([ratingList] of n) 2 providerId)
-  if(not empty? ret) OR (depth >= 4)
-  [
-    if (depth >= 4) [show (list "Exiting depth : " n)]
-    show (list "Exiting rating : " n "," ret)
-    report ret
-  ]
-
-  show ("Finding neighbours")
-  let neighbour_list []
-
-  ;; The current consumer has no ratings to give so it asks to his acquaintances
-
-  ;;Find the nearest consumers to provider in the range of the current consumer
-  let countCons 0
-  let i 0
-  ;show (list "parent :" self "current node : " n)
-  while [(countCons < 2) AND (i < length(openList))]
-  [
-
-    ;ask (turtle providerId) [show (list "Distance : " (toSpherical distance (item i openList)))  ]
-
-    ask n [
-
-      if (toSpherical (distance (item i openList))  < radiusOperation) AND (not member? (item i openList) (closed_list))
-      [
-        set closed_list (turtle-set (item i openList) closed_list)
-        set neighbour_list (lput (item i openList) neighbour_list)
-        ;set neighbour_list (remove-item i openList)
-        set countCons (countCons + 1)
-      ]
-      set i (i + 1)
-    ]
-  ]
-  ;show (list "neigh:" neighbour_list "depth:" depth)
-
-  ;show depth
-  ;show neighbour_list
-
-  ;; Report rating of agent + recursivily other ratings
-  show (list "Calling neighbours" neighbour_list)
-  foreach neighbour_list
-  [
-    v ->
-    let res (dfs_neighbour_verbose v (depth + 1) providerId)
-    set ret (sentence res ret)
-    show (list "Exiting one node " v "," ret)
-  ]
-  show (list "Exiting full node " n )
-  report ret
-end
-
-
-;; Deep first search to return wr_ratings
+;; (deprecated dfs
 to-report dfs_neighbour_old [n depth providerId]
 
   if (depth > 4) [report []]
@@ -434,6 +410,7 @@ to evolve-environment
     if random 100 < 10 [shift-mean]
   ]
   random-death-n-spawn consumer-death-n-spawn provider-death-n-spawn
+  set-providers-nearest-consumers
 end
 
 to-report interact [p]
@@ -454,7 +431,6 @@ end
 to compute-measures
   ;show (list "UG-tot:" UG-mes "nbActive:" nbActive)
   set UG lput (UG-mes / nbActive) UG
-
 end
 
 ;;
@@ -525,30 +501,6 @@ to-report find-best-provider [providerList utilities]
   report (list pmax umax)
 end
 
-;; formules (6) (7) p136
-to-report get-overall-trust-and-reliability [trusts rmTrusts]
-  let oTrust 0
-  let oReliability 0
-  let W_ (list W_IT W_WR W_CR)
-  let w []
-
-  let i 0
-  foreach trusts
-  [
-   t ->
-   set w lput ((item i rmTrusts) * (item i W_)) w
-   set oTrust oTrust + (t * (item i w))
-   set i i + 1
-  ]
-  if not (sum w = 0) ;avoid division by zero in case sum(w) = 0
-  [
-    set oTrust (oTrust / (sum w))
-  ]
-  set oReliability (sum w) / (sum W_)
-
-  report (list oTrust oReliability)
-end
-
 ;; reports the ratings with the specified value on the specified index
 to-report find-ratings [ratings index value]
   let memberList []
@@ -563,31 +515,55 @@ to-report find-ratings [ratings index value]
   report memberList
 end
 
+;; formules (6) (7) p136
+to-report get-overall-trust-and-reliability [trusts rmTrusts]
+  let oTrust 0
+  let oReliability 0
+  let W_ (list W_IT W_WR W_CR)
+  let w []
+
+  let i 0
+  foreach trusts
+  [
+    t ->
+    set w lput ((item i rmTrusts) * (item i W_)) w
+    set oTrust oTrust + (t * (item i w))
+    set i i + 1
+  ]
+  if not (sum w = 0) ;avoid division by zero in case sum(w) = 0
+  [
+    set oTrust (oTrust / (sum w))
+  ]
+  set oReliability (sum w) / (sum W_)
+
+  report (list oTrust oReliability)
+end
+
 ;; reports the trust and reliability of the rating list
 to-report get-trust-and-reliability [ratings]
 
-  ;; renvois des zéros s'il n'y a pas de ratings
+  ;;report zeros if there are no rating in input
   if empty? ratings
   [
     report (list 0 0)
   ]
 
   ;;compute trust
-  let weights []
   let trust 0
+  let weights []
   foreach ratings
   [
-   r ->
-   set weights lput exp(-(ticks - (item 0 r)) / lambda) (weights)
+    r ->
+    set weights (lput (exp((ticks + (item 0 r)) / lambda)) weights)
   ]
-  let sumWeights (sum weights)
+  let sumWeights sum weights
 
   let i 0
   foreach ratings
   [
-   r ->
-   set trust (trust + (item i weights) * (item 3 r))
-   set i (i + 1)
+    r ->
+    set trust (trust + (item i weights) * (item 3 r))
+    set i (i + 1)
   ]
   set trust (trust / sumWeights)
 
@@ -603,13 +579,9 @@ to-report get-trust-and-reliability [ratings]
     set i (i + 1)
   ]
   set deviation-reliability (1 - (0.5 * deviation-reliability / sumWeights))
-
   let reliability rating-reliability * deviation-reliability
 
-  ;;return both trust reliability
-  ;show (list "weights : " weights "trust : " trust "pr :" rating-reliability "pd : " deviation-reliability "p : " reliability)
   report (list trust reliability)
-
 end
 
 to move
@@ -1179,7 +1151,7 @@ SWITCH
 269
 do_WR
 do_WR
-1
+0
 1
 -1000
 
@@ -1219,7 +1191,7 @@ SWITCH
 356
 DYNAMIC_ENV
 DYNAMIC_ENV
-1
+0
 1
 -1000
 
