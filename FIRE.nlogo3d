@@ -11,6 +11,8 @@ providers-own [ utility
 consumers-own [ activityLevel noTrustValue hasTrustValue ratingList ]
 
 globals [
+  countSimu
+
   nbActive
   lambdaDist
   radiusOperation
@@ -51,7 +53,6 @@ globals [
   countWR
   countCR
   countOT
-
 ]
 
 to-report GOOD
@@ -111,15 +112,23 @@ to setup-constants
 
   set closed_list no-turtles
   set openList []
-  set simuTicks 200
+  set simuTicks 50
+end
+
+to relaunch
+  ;;Setup again for a new simulation
+  setup
+
+  ;;Put some changes here for the next simulation
+
+
 end
 
 to setup
   clear-all
 
   ;;PROFILER
-  profiler:reset
-  profiler:start
+  if HAS_PROFILER [profiler:reset profiler:start]
 
   ;;setup constants
   setup-constants
@@ -298,14 +307,20 @@ to go
 
   if DYNAMIC_ENV [evolve-environment]
   tick
-  if ticks = simuTicks [
-    if save_simulation [export-measures]
-    profiler:stop
-    print profiler:report
-    stop
+  show (word "Execution time : " timer)
+
+  ;;check end of simulation
+  if ticks = simuTicks
+  [
+    ;;Export simulation data
+    if save_utility [export-measures]
+    if HAS_PROFILER [profiler:stop print profiler:report]
+
+    ;;Reset simulation and continue launching
+    set countSimu (countSimu + 1)
+    ifelse countSimu < nb-simulation [relaunch][stop]
   ]
 
-  show (word "Execution time : " timer)
 end
 
 to reset-globals
@@ -1134,7 +1149,7 @@ SWITCH
 304
 do_WR
 do_WR
-0
+1
 1
 -1000
 
@@ -1145,7 +1160,7 @@ SWITCH
 345
 do_CR
 do_CR
-0
+1
 1
 -1000
 
@@ -1179,21 +1194,21 @@ DYNAMIC_ENV
 -1000
 
 SWITCH
-151
-271
-278
-304
-save_simulation
-save_simulation
-0
+141
+232
+268
+265
+save_utility
+save_utility
+1
 1
 -1000
 
 SWITCH
-152
-232
-278
-265
+281
+269
+403
+302
 WR_VERBOSE
 WR_VERBOSE
 1
@@ -1222,15 +1237,41 @@ PENS
 "Overall" 1.0 0 -955883 true "" "plot item (ticks - 1) roO"
 
 SWITCH
-150
-308
-278
-341
+140
+269
+268
+302
 save_reliability
 save_reliability
-0
+1
 1
 -1000
+
+SWITCH
+282
+232
+403
+265
+HAS_PROFILER
+HAS_PROFILER
+1
+1
+-1000
+
+SLIDER
+145
+46
+317
+79
+nb-simulation
+nb-simulation
+1
+100
+12.0
+1
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
