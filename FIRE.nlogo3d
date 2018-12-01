@@ -11,8 +11,6 @@ providers-own [ utility
 consumers-own [ activityLevel noTrustValue hasTrustValue ratingList ]
 
 globals [
-  UG
-  UG-mes
   nbActive
   lambdaDist
   radiusOperation
@@ -37,6 +35,23 @@ globals [
   openList
   closed_list
   simuTicks
+
+  UG
+  UG-mes
+
+  roI
+  roI-mes
+  roW
+  roW-mes
+  roC
+  roC-mes
+  roO
+  roO-mes
+  countIT
+  countWR
+  countCR
+  countOT
+
 ]
 
 to-report GOOD
@@ -58,6 +73,19 @@ end
 to setup-constants
   set UG [];mesures
   set UG-mes 0;mesures
+  set roI [];mesures
+  set roI-mes 0;mesures
+  set roW [];mesures
+  set roW-mes 0;mesures
+  set roC [];mesures
+  set roC-mes 0;mesures
+  set roO [];mesures
+  set roO-mes 0;mesures
+  set countIT 0;mesures
+  set countWR 0;mesures
+  set countCR 0;mesures
+  set countOT 0;mesures
+
   set nbActive 0;mesures
   set lambdaDist 1
   set radiusOperation 10
@@ -122,8 +150,7 @@ end
 to go
   if ticks < 1 [reset-timer ];time measurements
 
-  set UG-mes 0
-  set nbActive 0
+  reset-globals ;reset global variable (for measurements)
 
   ask consumers
   [
@@ -136,8 +163,7 @@ to go
       set hasTrustValue []
       let OT []
       let rmOT []
-      let IT 0
-      let rmIT 0
+
 
       ;; on parcourt les providers de la carte
       foreach [who] of providers
@@ -147,8 +173,8 @@ to go
         let it_ratings []
         let wr_ratings []
         let cr_ratings []
-        set IT 0
-        set rmIT 0
+        let IT 0
+        let rmIT 0
         let WR 0
         let rmWR 0
         let CR 0
@@ -162,6 +188,8 @@ to go
           let res (get-trust-and-reliability it_ratings)
           set IT item 0 res
           set rmIT item 1 res
+          set roI-mes (roI-mes + rmIT)
+          set countIT (countIT + 1)
         ]
 
         ;;calcul de WR
@@ -176,6 +204,8 @@ to go
           let res (get-trust-and-reliability wr_ratings)
           set WR item 0 res
           set rmWR item 1 res
+          set roW-mes (roW-mes + rmWR)
+          set countWR (countWR + 1)
         ]
 
 
@@ -195,6 +225,8 @@ to go
           let res (get-trust-and-reliability cr_ratings)
           set CR item 0 res
           set rmCR item 1 res
+          set roC-mes (roC-mes + rmCR)
+          set countCR (countCR + 1)
         ]
 
         ;; build noTrustValue and hasTrustValue lists
@@ -212,6 +244,9 @@ to go
           let res (get-overall-trust-and-reliability (list IT WR CR) (list rmIT rmWR rmCR)) ;;fonction pour calculer l'OT
           set OT lput (item 0 res) OT ;; liste des overall ratings
           set rmOT lput (item 1 res) rmOT ;; liste de fiabilité des overall ratings
+
+          set roO-mes (roO-mes + (item 1 res))
+          set countOT (countOT + 1)
         ]
       ]
       ;;choix du provider
@@ -257,7 +292,10 @@ to go
   [
     set temperature temperature - deltaT * temperature
   ]
+
+  ;;compute measures
   compute-measures
+
   if DYNAMIC_ENV [evolve-environment]
   tick
   if ticks = simuTicks [
@@ -268,6 +306,22 @@ to go
   ]
 
   show (word "Execution time : " timer)
+end
+
+to reset-globals
+
+  set UG-mes 0
+  set nbActive 0
+
+  set roI-mes 0
+  set roW-mes 0
+  set roC-mes 0
+  set roO-mes 0
+  set countIT 0
+  set countWR 0
+  set countCR 0
+  set countOT 0
+
 end
 
 to set-providers-nearest-consumers
@@ -429,11 +483,14 @@ end
 
 ;; calcul des variables des figures
 to compute-measures
-  ;show (list "UG-tot:" UG-mes "nbActive:" nbActive)
-  set UG lput (UG-mes / nbActive) UG
+  set UG lput (UG-mes / nbActive) UG ;Mean utility gain
+  ifelse countIT = 0 [set roI lput 0 roI][set roI lput (roI-mes / countIT) roI];Mean IT reliability. If nothing, then
+  ifelse countWR = 0 [set roW lput 0 roW][set roW lput (roW-mes / countWR) roW];Mean WR reliability
+  ifelse countCR = 0 [set roC lput 0 roC][set roC lput (roC-mes / countCR) roC];Mean CR reliability
+  ifelse countOT = 0 [set roO lput 0 roO][set roO lput (roO-mes / countOT) roO];Mean Overall reliability
 end
 
-;;
+;; saving measures to csv file
 to export-measures
   let name ""
   if do_IT [set name (word name "IT-")]
@@ -448,6 +505,8 @@ to export-measures
   set date remove "." date
 
   csv:to-file (word "save_data/SAVE_" name date ".csv") (list UG)
+  if save_reliability [csv:to-file (word "save_data/RELIABILITYSAVE_" name date ".csv") (list roI roW roC roO)]
+
 end
 
 ;; pour le CR
@@ -608,7 +667,6 @@ to-report limit [u]
   ]
   report u
 end
-
 
 to spawn-providers
   ;;Creation des GOOD providers
@@ -829,10 +887,10 @@ ticks
 30.0
 
 SLIDER
-48
-36
-220
-69
+10
+106
+165
+139
 number-of-consumers
 number-of-consumers
 100
@@ -843,65 +901,11 @@ number-of-consumers
 NIL
 HORIZONTAL
 
-PLOT
-36
-360
-236
-510
-xcor
-NIL
-NIL
--16.0
-16.0
-0.0
-13.0
-true
-false
-"" ""
-PENS
-"xcor" 1.0 1 -16777216 true "" "histogram [xcor] of turtles"
-
-PLOT
-36
-509
-236
-659
-ycor
-NIL
-NIL
--16.0
-16.0
-0.0
-10.0
-true
-false
-"" ""
-PENS
-"ycor" 1.0 1 -16777216 true "" "histogram [ycor] of turtles"
-
-PLOT
-36
-658
-236
-808
-zcor
-NIL
-NIL
--16.0
-16.0
-0.0
-10.0
-true
-false
-"" ""
-PENS
-"zcor" 1.0 1 -16777216 true "" "histogram [zcor] of turtles"
-
 BUTTON
-56
-109
-206
-142
+11
+10
+120
+43
 NIL
 setup
 NIL
@@ -915,10 +919,10 @@ NIL
 1
 
 SLIDER
-50
-73
-222
-106
+11
+143
+164
+176
 number-of-providers
 number-of-providers
 20
@@ -930,10 +934,10 @@ NIL
 HORIZONTAL
 
 BUTTON
-100
-144
-163
-177
+11
+51
+120
+84
 NIL
 go
 T
@@ -947,10 +951,10 @@ NIL
 1
 
 SLIDER
-238
-36
-410
-69
+13
+510
+185
+543
 max-death-per-tick
 max-death-per-tick
 2
@@ -962,10 +966,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-240
-75
-412
-108
+13
+545
+185
+578
 max-spawn-per-tick
 max-spawn-per-tick
 2
@@ -977,11 +981,11 @@ NIL
 HORIZONTAL
 
 PLOT
-256
-557
-456
-707
-profile repartition
+427
+65
+627
+215
+Profile repartition of providers
 NIL
 NIL
 -10.0
@@ -995,10 +999,10 @@ PENS
 "utility" 1.0 0 -16777216 true "" "histogram [profile] of providers "
 
 SLIDER
-420
-76
-592
-109
+13
+581
+185
+614
 delta_ang
 delta_ang
 0
@@ -1010,10 +1014,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-419
-35
-591
-68
+11
+183
+164
+216
 radius
 radius
 0
@@ -1025,10 +1029,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-284
-232
-476
-265
+13
+475
+205
+508
 consumer-death-n-spawn
 consumer-death-n-spawn
 0
@@ -1040,10 +1044,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-285
-196
-475
-229
+14
+439
+204
+472
 provider-death-n-spawn
 provider-death-n-spawn
 0
@@ -1055,10 +1059,10 @@ NIL
 HORIZONTAL
 
 MONITOR
-320
-333
-446
-378
+560
+10
+686
+55
 Number of providers
 count providers
 17
@@ -1066,10 +1070,10 @@ count providers
 11
 
 MONITOR
-317
-273
-450
-318
+425
+10
+558
+55
 Number of consumers
 count consumers
 17
@@ -1077,31 +1081,10 @@ count consumers
 11
 
 PLOT
-256
-403
-456
-553
-plot 1
-NIL
-NIL
-0.0
-10.0
-0.0
-10.0
-true
-false
-"" ""
-PENS
-"default" 1.0 0 -1664597 true "" "plot count providers with [profile = INTERMITTENT]"
-"pen-1" 1.0 0 -13840069 true "" "plot count providers with [profile = GOOD]"
-"pen-2" 1.0 0 -2674135 true "" "plot count providers with [profile = BAD]"
-"pen-3" 1.0 0 -7500403 true "" "plot count providers with [profile = ORDINARY]"
-
-PLOT
-479
-400
-679
-550
+629
+65
+829
+215
 utility repartition
 NIL
 NIL
@@ -1116,10 +1099,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "histogram [utility] of providers"
 
 PLOT
-681
-157
-964
-370
+427
+229
+710
+436
 Global utility
 NIL
 NIL
@@ -1134,10 +1117,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot item (ticks - 1) UG"
 
 SWITCH
-544
-197
-647
-230
+11
+232
+129
+265
 do_IT
 do_IT
 0
@@ -1145,10 +1128,10 @@ do_IT
 -1000
 
 SWITCH
-544
-236
-647
-269
+12
+271
+129
+304
 do_WR
 do_WR
 0
@@ -1156,21 +1139,21 @@ do_WR
 -1000
 
 SWITCH
-543
-277
-646
-310
+13
+312
+128
+345
 do_CR
 do_CR
-1
+0
 1
 -1000
 
 PLOT
-682
-400
-882
-550
+716
+229
+916
+379
 Temperature
 NIL
 NIL
@@ -1185,21 +1168,21 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot temperature"
 
 SWITCH
-528
-323
-666
-356
+13
+403
+151
+436
 DYNAMIC_ENV
 DYNAMIC_ENV
-0
+1
 1
 -1000
 
 SWITCH
-525
-361
-668
-394
+151
+271
+278
+304
 save_simulation
 save_simulation
 0
@@ -1207,13 +1190,45 @@ save_simulation
 -1000
 
 SWITCH
-661
-70
-795
-103
+152
+232
+278
+265
 WR_VERBOSE
 WR_VERBOSE
 1
+1
+-1000
+
+PLOT
+921
+71
+1298
+379
+Mean reliability factors over time
+tick
+NIL
+0.0
+10.0
+0.0
+2.0
+true
+true
+"" ""
+PENS
+"IT" 1.0 0 -16777216 true "" "plot item (ticks - 1) roI"
+"WR" 1.0 0 -7500403 true "" "plot item (ticks - 1) roW"
+"CR" 1.0 0 -2674135 true "" "plot item (ticks - 1) roC"
+"Overall" 1.0 0 -955883 true "" "plot item (ticks - 1) roO"
+
+SWITCH
+150
+308
+278
+341
+save_reliability
+save_reliability
+0
 1
 -1000
 
