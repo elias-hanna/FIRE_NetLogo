@@ -1,0 +1,405 @@
+%% Clear
+close all;
+clear all;
+clc;
+%% Main
+
+time = 1:200;
+
+IT_files = dir("IT/*.*");
+IT_WR_files = dir("IT-WR/*.*");
+IT_WR_CR_files = dir("IT-WR-CR/*.*");
+IT_CR_files = dir("IT-CR/*.*");
+rely_files = dir("reliability/*.*");
+
+hist = csvread("histogram/SAVE_histogramUG_123155394.csv");
+
+minT_files_01 = dir("minT/01/*.*");
+minT_files_02 = dir("minT/02/*.*");
+minT_files_03 = dir("minT/03/*.*");
+minT_files_04 = dir("minT/04/*.*");
+minT_files_05 = dir("minT/05/*.*");
+minT_files_06 = dir("minT/06/*.*");
+minT_files_07 = dir("minT/07/*.*");
+minT_files_08 = dir("minT/08/*.*");
+minT_files_09 = dir("minT/09/*.*");
+minT_files_1 = dir("minT/1/*.*");
+
+minT_files_01 = dir("minT/01/*.*");
+minT_files_02 = dir("minT/02/*.*");
+minT_files_03 = dir("minT/03/*.*");
+minT_files_04 = dir("minT/04/*.*");
+minT_files_05 = dir("minT/05/*.*");
+minT_files_06 = dir("minT/06/*.*");
+minT_files_07 = dir("minT/07/*.*");
+minT_files_08 = dir("minT/08/*.*");
+minT_files_09 = dir("minT/09/*.*");
+minT_files_1 = dir("minT/1/*.*");
+
+liar_files_01 = dir("liar/0.1/*.*");
+liar_files_02 = dir("liar/0.2/*.*");
+liar_files_03 = dir("liar/0.3/*.*");
+liar_files_04 = dir("liar/0.4/*.*");
+liar_files_05 = dir("liar/0.5/*.*");
+liar_files_06 = dir("liar/0.6/*.*");
+liar_files_07 = dir("liar/0.7/*.*");
+liar_files_08 = dir("liar/0.8/*.*");
+
+radius_files_1 = dir("radiusOperation/1/*.*");
+radius_files_4 = dir("radiusOperation/4/*.*");
+radius_files_7 = dir("radiusOperation/7/*.*");
+radius_files_10 = dir("radiusOperation/10/*.*");
+radius_files_13 = dir("radiusOperation/13/*.*");
+radius_files_16 = dir("radiusOperation/16/*.*");
+radius_files_19 = dir("radiusOperation/19/*.*");
+radius_files_22 = dir("radiusOperation/22/*.*");
+radius_files_25 = dir("radiusOperation/25/*.*");
+radius_files_28 = dir("radiusOperation/28/*.*");
+radius_files_31 = dir("radiusOperation/31/*.*");
+
+dt_files_0 = dir("deltaT/0/*.*");
+dt_files_01 = dir("deltaT/01/*.*");
+dt_files_02 = dir("deltaT/02/*.*");
+dt_files_03 = dir("deltaT/03/*.*");
+dt_files_04 = dir("deltaT/04/*.*");
+dt_files_05 = dir("deltaT/05/*.*");
+dt_files_06 = dir("deltaT/06/*.*");
+dt_files_07 = dir("deltaT/07/*.*");
+dt_files_08 = dir("deltaT/08/*.*");
+dt_files_09 = dir("deltaT/09/*.*");
+
+IT = zeros(1,200);
+IT_CR = zeros(1,200);
+IT_WR_CR = zeros(1,200);
+IT_WR = zeros(1,200);
+
+rely = zeros(4,200);
+
+minT_01 = zeros(1,20);
+minT_02 = zeros(1,20);
+minT_03 = zeros(1,20);
+minT_04 = zeros(1,20);
+minT_05 = zeros(1,20);
+minT_06 = zeros(1,20);
+minT_07 = zeros(1,20);
+minT_08 = zeros(1,20);
+minT_09 = zeros(1,20);
+minT_1 = zeros(1,20);
+
+liar_01 = zeros(1,200);
+liar_02 = zeros(1,200);
+liar_03 = zeros(1,200);
+liar_04 = zeros(1,200);
+liar_05 = zeros(1,200);
+liar_06 = zeros(1,200);
+liar_07 = zeros(1,200);
+liar_08 = zeros(1,200);
+
+ld_0 = zeros(1,20);
+ld_05 = zeros(1,20);
+ld_1 = zeros(1,20);
+ld_15 = zeros(1,20);
+ld_2 = zeros(1,20);
+ld_25 = zeros(1,20);
+ld_3 = zeros(1,20);
+ld_35 = zeros(1,20);
+ld_4 = zeros(1,20);
+
+rad_1 = zeros(1,20);
+rad_4 = zeros(1,20);
+rad_7 = zeros(1,20);
+rad_10 = zeros(1,20);
+rad_13 = zeros(1,20);
+rad_16 = zeros(1,20);
+rad_19 = zeros(1,20);
+rad_22 = zeros(1,20);
+rad_25 = zeros(1,20);
+rad_28 = zeros(1,20);
+rad_31 = zeros(1,20);
+
+dt_0 = zeros(1,20);
+dt_01 = zeros(1,20);
+dt_02 = zeros(1,20);
+dt_03 = zeros(1,20);
+dt_04 = zeros(1,20);
+dt_05 = zeros(1,20);
+dt_06 = zeros(1,20);
+dt_07 = zeros(1,20);
+dt_08 = zeros(1,20);
+dt_09 = zeros(1,20);
+
+for i=1:length(IT_files)
+    if(i > 2)
+        IT = IT + csvread("IT/" + IT_files(i).name);
+    end
+end
+IT = IT/10;
+for i=1:length(rely_files)
+    if(i > 2)
+        rely = rely + csvread("reliability/" + rely_files(i).name);
+    end
+end
+IT = IT/10;
+for i=1:length(IT_CR_files)
+    if(i > 2)
+        IT_CR = IT_CR + csvread("IT-CR/" + IT_CR_files(i).name);
+    end
+end
+IT_CR = IT_CR/10;
+for i=1:length(IT_WR_files)
+    if(i > 2)
+        IT_WR = IT_WR + csvread("IT-WR/" + IT_WR_files(i).name);
+    end
+end
+IT_WR = IT_WR/10;
+for i=1:length(IT_WR_CR_files)
+    if(i > 2)
+        IT_WR_CR = IT_WR_CR + csvread("IT-WR-CR/" + IT_WR_CR_files(i).name);
+    end
+end
+IT_WR_CR = IT_WR_CR/10;
+
+for i=1:length(minT_files_01)
+    if(i > 2)
+        minT_01 = minT_01 + csvread("minT/01/" + minT_files_01(i).name);
+        minT_02 = minT_02 + csvread("minT/02/" + minT_files_02(i).name);
+        minT_03 = minT_03 + csvread("minT/03/" + minT_files_03(i).name);
+        minT_04 = minT_04 + csvread("minT/04/" + minT_files_04(i).name);
+        minT_05 = minT_05 + csvread("minT/05/" + minT_files_05(i).name);
+        minT_06 = minT_06 + csvread("minT/06/" + minT_files_06(i).name);
+        minT_07 = minT_07 + csvread("minT/07/" + minT_files_07(i).name);
+        minT_08 = minT_08 + csvread("minT/08/" + minT_files_08(i).name);
+        minT_09 = minT_09 + csvread("minT/09/" + minT_files_09(i).name);
+        minT_1 = minT_1 + csvread("minT/1/" + minT_files_1(i).name);
+    end
+end
+minT_01 = minT_01/10;
+minT_02 = minT_02/10;
+minT_03 = minT_03/10;
+minT_04 = minT_04/10;
+minT_05 = minT_05/10;
+minT_06 = minT_06/10;
+minT_07 = minT_07/10;
+minT_08 = minT_08/10;
+minT_09 = minT_09/10;
+minT_1 = minT_1/10;
+
+for i=1:length(minT_files_01)
+    if(i > 2)
+        minT_01 = minT_01 + csvread("minT/01/" + minT_files_01(i).name);
+        minT_02 = minT_02 + csvread("minT/02/" + minT_files_02(i).name);
+        minT_03 = minT_03 + csvread("minT/03/" + minT_files_03(i).name);
+        minT_04 = minT_04 + csvread("minT/04/" + minT_files_04(i).name);
+        minT_05 = minT_05 + csvread("minT/05/" + minT_files_05(i).name);
+        minT_06 = minT_06 + csvread("minT/06/" + minT_files_06(i).name);
+        minT_07 = minT_07 + csvread("minT/07/" + minT_files_07(i).name);
+        minT_08 = minT_08 + csvread("minT/08/" + minT_files_08(i).name);
+        minT_09 = minT_09 + csvread("minT/09/" + minT_files_09(i).name);
+        minT_1 = minT_1 + csvread("minT/1/" + minT_files_1(i).name);
+    end
+end
+minT_01 = minT_01/10;
+minT_02 = minT_02/10;
+minT_03 = minT_03/10;
+minT_04 = minT_04/10;
+minT_05 = minT_05/10;
+minT_06 = minT_06/10;
+minT_07 = minT_07/10;
+minT_08 = minT_08/10;
+minT_09 = minT_09/10;
+minT_1 = minT_1/10;
+
+for i=1:length(liar_files_01)
+    if(i > 2)
+        liar_01 = liar_01 + csvread("liar/0.1/" + liar_files_01(i).name);
+        liar_02 = liar_02 + csvread("liar/0.2/" + liar_files_02(i).name);
+        liar_03 = liar_03 + csvread("liar/0.3/" + liar_files_03(i).name);
+        liar_04 = liar_04 + csvread("liar/0.4/" + liar_files_04(i).name);
+        liar_05 = liar_05 + csvread("liar/0.5/" + liar_files_05(i).name);
+        liar_06 = liar_06 + csvread("liar/0.6/" + liar_files_06(i).name);
+        liar_07 = liar_07 + csvread("liar/0.7/" + liar_files_07(i).name);
+        liar_08 = liar_08 + csvread("liar/0.8/" + liar_files_08(i).name);
+    end
+end
+liar_01 = liar_01/10;
+liar_02 = liar_02/10;
+liar_03 = liar_03/10;
+liar_04 = liar_04/10;
+liar_05 = liar_05/10;
+liar_06 = liar_06/10;
+liar_07 = liar_07/10;
+liar_08 = liar_08/10;
+
+for i=1:length(radius_files_16)
+    if(i > 2)
+        rad_1 = rad_1 + csvread("radiusOperation/1/" + radius_files_1(i).name);
+        rad_4 = rad_4 + csvread("radiusOperation/4/" + radius_files_4(i).name);
+        rad_7 = rad_7 + csvread("radiusOperation/7/" + radius_files_7(i).name);
+        tmp = csvread("radiusOperation/10/" + radius_files_10(i).name);
+        rad_10 = rad_10 + tmp(1:20);
+        rad_13 = rad_13 + csvread("radiusOperation/13/" + radius_files_13(i).name);
+        rad_16 = rad_16 + csvread("radiusOperation/16/" + radius_files_16(i).name);
+        rad_19 = rad_19 + csvread("radiusOperation/19/" + radius_files_19(i).name);
+        rad_22 = rad_22 + csvread("radiusOperation/22/" + radius_files_22(i).name);
+        rad_25 = rad_25 + csvread("radiusOperation/25/" + radius_files_25(i).name);
+        rad_28 = rad_28 + csvread("radiusOperation/28/" + radius_files_28(i).name);
+        rad_31 = rad_31 + csvread("radiusOperation/31/" + radius_files_31(i).name);
+    end
+end
+rad_1 = rad_1/5;
+rad_4 = rad_4/5;
+rad_7 = rad_7/5;
+rad_10 = rad_10/5;
+rad_13 = rad_13/5;
+rad_16 = rad_16/5;
+rad_19 = rad_19/5; 
+rad_22 = rad_22/5;
+rad_25 = rad_25/5;
+rad_28 = rad_28/5; 
+rad_31 = rad_31/5;
+
+for i=1:length(dt_files_0)
+    if(i > 2)
+        dt_0 = dt_0 + csvread("deltaT/0/" + dt_files_0(i).name);
+        dt_01 = dt_01 + csvread("deltaT/01/" + dt_files_01(i).name);
+        dt_02 = dt_02 + csvread("deltaT/02/" + dt_files_02(i).name);
+        dt_03 = dt_03 + csvread("deltaT/03/" + dt_files_03(i).name);
+        dt_04 = dt_04 + csvread("deltaT/04/" + dt_files_04(i).name);
+        dt_05 = dt_05 + csvread("deltaT/05/" + dt_files_05(i).name);
+        dt_06 = dt_06 + csvread("deltaT/06/" + dt_files_06(i).name);
+        dt_07 = dt_07 + csvread("deltaT/07/" + dt_files_07(i).name);
+        dt_08 = dt_08 + csvread("deltaT/08/" + dt_files_08(i).name);
+        dt_09 = dt_09 + csvread("deltaT/09/" + dt_files_09(i).name);
+    end
+end
+dt_0 = dt_0/10;
+dt_01 = dt_01/10;
+dt_02 = dt_02/10;
+dt_03 = dt_03/10;
+dt_04 = dt_04/10;
+dt_05 = dt_05/10;
+dt_06 = dt_06/10;
+dt_07 = dt_07/10;
+dt_08 = dt_08/10;
+dt_09 = dt_09/10;
+
+figure;
+plot(time, IT);
+title("FIRE-IT model");
+ylim([-inf 7]);
+xlabel("Interactions"); ylabel("UG");
+
+figure;
+plot(time, IT);hold on;
+plot(time, IT_WR);
+title("FIRE-IT model and FIRE-IT-WR model");
+ylim([-inf 7]);
+xlabel("Interactions"); ylabel("UG");
+legend("FIRE-IT", "FIRE-IT-WR");
+
+figure;
+plot(time, IT);hold on;
+plot(time, IT_CR);
+title("FIRE-IT model and FIRE-IT-CR model");
+ylim([-inf 7]);
+xlabel("Interactions"); ylabel("UG");
+legend("FIRE-IT", "FIRE-IT-CR");
+
+figure;
+plot(time, IT_WR);hold on;
+plot(time, IT_WR_CR);
+title("FIRE-IT-WR model and FIRE-IT-WR-CR model");
+xlabel("Interactions"); ylabel("UG");
+legend("FIRE-IT-WR", "FIRE-IT-WR-CR");
+
+figure;
+plot(time, rely(1,:));hold on;
+plot(time, rely(2,:));hold on;
+plot(time, rely(3,:));hold on;
+plot(time, rely(4,:));
+title("Reliability factors mean depending on ticks");
+xlabel("Interactions"); ylabel("Reliability");
+legend("roI", "roW", "roC", "roT");
+
+figure;
+plot(time, IT_WR_CR);hold on;
+plot(time, liar_01);hold on;
+plot(time, liar_02);hold on;
+plot(time, liar_03);hold on;
+plot(time, liar_04);hold on;
+plot(time, liar_05);hold on;
+plot(time, liar_06);hold on;
+plot(time, liar_07);hold on;
+plot(time, liar_08);hold on;
+title("Analyse de sensisibilité au pourcentage de menteurs");
+xlabel("Interactions"); ylabel("UG");
+legend("FIRE-IT-WR-CR: 0%", "10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%");
+
+
+time = 1:20;
+
+figure;
+plot(time, minT_01);hold on;
+plot(time, minT_02);hold on;
+plot(time, minT_03);hold on;
+plot(time, minT_04);hold on;
+plot(time, minT_05);hold on;
+plot(time, minT_06);hold on;
+plot(time, minT_07);hold on;
+plot(time, minT_08);hold on;
+plot(time, minT_09);hold on;
+plot(time, minT_1);
+title("Analyse de sensibilité sur la température minimale");
+xlabel("Interactions"); ylabel("UG");
+legend("minT = 0.1", "minT = 0.2", "minT = 0.3", "minT = 0.4", "minT = 0.5","minT = 0.6", "minT = 0.7", "minT = 0.8", "minT = 0.9", "minT = 1");
+
+figure;
+plot(time, ld_0);hold on;
+plot(time, ld_05);hold on;
+plot(time, ld_1);hold on;
+plot(time, ld_15);hold on;
+plot(time, ld_2);hold on;
+plot(time, ld_25);hold on;
+plot(time, ld_3);hold on;
+plot(time, ld_35);hold on;
+plot(time, ld_4);
+title("Analyse de sensibilité sur le facteur de réduction de l'utilité en fonction de la distance en dehors du rayon d'opération");
+xlabel("Interactions"); ylabel("UG");
+legend("lambdaDist = 0", "lambdaDist = 0.5", "lambdaDist = 1", "lambdaDist = 1.5", "lambdaDist = 2", "lambdaDist = 2.5", "lambdaDist = 3", "lambdaDist = 3.5", "lambdaDist = 4");
+
+figure;
+plot(time, rad_1);hold on;
+plot(time, rad_4);hold on;
+plot(time, rad_7);hold on;
+plot(time, rad_10);hold on;
+plot(time, rad_13);hold on;
+plot(time, rad_19);hold on;
+plot(time, rad_22);hold on;
+plot(time, rad_25);hold on;
+plot(time, rad_28);hold on;
+plot(time, rad_31);
+title("Analyse de sensibilité sur le rayon d'opération");
+xlabel("Interactions"); ylabel("UG");
+legend("r0 = 1","r0 = 4","r0 = 7","r0 = 10", "r0 = 13","r0 = 19","r0 = 22","r0 = 25","r0 = 28","r0 = 31");
+
+figure;
+
+plot(time, dt_01);hold on;
+plot(time, dt_02);hold on;
+plot(time, dt_03);hold on;
+plot(time, dt_04);hold on;
+plot(time, dt_05);hold on;
+plot(time, dt_06);hold on;
+plot(time, dt_07);hold on;
+plot(time, dt_08);hold on;
+plot(time, dt_09);hold on;
+plot(time, dt_0);
+title("Analyse de sensibilité sur la variation de température à chaque pas de temps");
+xlabel("Interactions"); ylabel("UG");
+legend("\DeltaT = 0.1", "\DeltaT = 0.2", "\DeltaT = 0.3", "\DeltaT = 0.4", "\DeltaT = 0.5", "\DeltaT = 0.6", "\DeltaT = 0.7", "\DeltaT = 0.8", "\DeltaT = 0.9", "\DeltaT = 0");
+
+figure;
+
+histogram(hist, 400, 'BinLimits',[-10,10]);
+title("Histogramme des valeurs des UGs des consumers (intervalle de 0.05)");
+xlabel("Valeur de UG");ylabel("Nombre de consumers");
