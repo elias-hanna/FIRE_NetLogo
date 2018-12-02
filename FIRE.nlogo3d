@@ -7,12 +7,11 @@ providers-own [ utility
   profile
   pRatingList
   nearestConsumers ;list of (consumer,distanceToProvider)
+  isLiar ;tells if the provider is a liar thus giving
 ]
-consumers-own [ activityLevel noTrustValue hasTrustValue ratingList ]
+consumers-own [ activityLevel noTrustValue hasTrustValue ratingList isLiar ]
 
 globals [
-  countSimu
-
   nbActive
   lambdaDist
   radiusOperation
@@ -71,6 +70,48 @@ to-report BAD
   report 3
 end
 
+;; saving measures to csv file
+to export-measures
+  let name ""
+  if do_IT [set name (word name "IT-")]
+  if do_WR [set name (word name "WR-")]
+  if do_CR [set name (word name "CR-")]
+  if DYNAMIC_ENV [set name (word name "Dyn-")]
+
+  let date date-and-time
+  set date substring date 0 13
+  set date remove ":" date
+  set date remove " " date
+  set date remove "." date
+
+  if save_utility [csv:to-file (word "save_data/SAVE_" "liarProba" liar-probability "_" date ".csv") (list UG)]
+  if save_reliability [csv:to-file (word "save_data/RELIABILITYSAVE_" name date ".csv") (list roI roW roC roO)]
+  if save_mean_deviation_ug [csv:to-file (word "save_data/mean" date ".csv") (list compute-mean-deviation-ug)]
+end
+
+to export-histogram-ug
+
+  let UG-list ([10 * (item 3 (last ratingList))] of consumers)
+  show UG-list
+
+  let date date-and-time
+  set date substring date 0 13
+  set date remove ":" date
+  set date remove " " date
+  set date remove "." date
+
+  csv:to-file (word "save_data/SAVE_histogramUG_" date ".csv" ) (list UG-list)
+
+end
+
+to-report compute-mean-deviation-ug
+  let UG-list ([10 * (item 3 (last ratingList))] of consumers)
+  let std standard-deviation UG-list
+  let m mean UG-list
+
+  report (list std m)
+end
+
 to setup-constants
   set UG [];mesures
   set UG-mes 0;mesures
@@ -112,7 +153,7 @@ to setup-constants
 
   set closed_list no-turtles
   set openList []
-  set simuTicks 50
+  set simuTicks 200
 end
 
 to relaunch
@@ -313,12 +354,12 @@ to go
   if ticks = simuTicks
   [
     ;;Export simulation data
-    if save_utility [export-measures]
+    export-measures
     if HAS_PROFILER [profiler:stop print profiler:report]
 
     ;;Reset simulation and continue launching
-    set countSimu (countSimu + 1)
-    ifelse countSimu < nb-simulation [relaunch][stop]
+    set nb-simulation (nb-simulation - 1)
+    ifelse nb-simulation > 0 [relaunch][stop]
   ]
 
 end
@@ -368,6 +409,13 @@ to-report dfs_neighbour [n depth providerId]
 
   ;; Add consumer to closed list
   set closed_list (turtle-set n closed_list)
+
+  ;; Check if the consumer is a liar. If so, report a random rating
+  if ( [isLiar] of n )
+  [
+    let ret (list (random (ticks - 1)) ([who] of n) providerId ((random-float 2) - 1) )
+    report (list ret)
+  ]
 
   ;; Check if the consumer has ratings of the provider and report it if so
   let ret []
@@ -505,29 +553,29 @@ to compute-measures
   ifelse countOT = 0 [set roO lput 0 roO][set roO lput (roO-mes / countOT) roO];Mean Overall reliability
 end
 
-;; saving measures to csv file
-to export-measures
-  let name ""
-  if do_IT [set name (word name "IT-")]
-  if do_WR [set name (word name "WR-")]
-  if do_CR [set name (word name "CR-")]
-  if DYNAMIC_ENV [set name (word name "Dyn-")]
 
-  let date date-and-time
-  set date substring date 0 13
-  set date remove ":" date
-  set date remove " " date
-  set date remove "." date
-
-  csv:to-file (word "save_data/SAVE_" name date ".csv") (list UG)
-  if save_reliability [csv:to-file (word "save_data/RELIABILITYSAVE_" name date ".csv") (list roI roW roC roO)]
-
-end
 
 ;; pour le CR
 to save-rating [p rating]
   ask p
   [
+
+
+    if (do_liars)
+    [
+      ;show (list "before" rating)
+      if (isLiar)
+      [
+
+        let newPerf ( (item 3 rating) * 10 + (random-float maximum-lie) )
+        set newPerf limit newPerf
+        ;show (list (item 3 rating)  "," newPerf)
+        set rating (replace-item 3 rating (newPerf / 10))
+      ]
+      ;show rating
+    ]
+
+
     set pRatingList (lput rating pRatingList)
 
     ;; if list is full, delete rating with minimum performance
@@ -693,6 +741,11 @@ to spawn-providers
     set color green
     set utility random-normal 7.5 1
     set pRatingList []
+    set isLiar False
+    if (do_liars)
+    [
+      if ((random-float 1) < liar-probability) [set isLiar True]
+    ]
   ]
   ;;Creation des ORDINARY providers
   create-providers number-of-providers * 0.4
@@ -703,6 +756,11 @@ to spawn-providers
     set color gray
     set utility random-normal 2.5 2
     set pRatingList []
+    set isLiar False
+    if (do_liars)
+    [
+      if ((random-float 1) < liar-probability) [set isLiar True]
+    ]
   ]
   ;;Creation des INTERMITTENTS providers
   create-providers number-of-providers * 0.05
@@ -713,6 +771,11 @@ to spawn-providers
     set color pink
     set utility random-normal 0 5
     set pRatingList []
+    set isLiar False
+    if (do_liars)
+    [
+      if ((random-float 1) < liar-probability) [set isLiar True]
+    ]
   ]
   ;;Creation des BAD providers
   create-providers number-of-providers * 0.45
@@ -723,6 +786,12 @@ to spawn-providers
     set color red
     set utility random-normal -5 2
     set pRatingList []
+    set isLiar False
+    if (do_liars)
+    [
+      if ((random-float 1) < liar-probability) [set isLiar True]
+    ]
+
   ]
 end
 
@@ -736,6 +805,12 @@ to spawn-consumers [nb]
     set noTrustValue []
     set hasTrustValue []
     set ratingList []
+
+    set isLiar False
+    if (do_liars)
+    [
+      if ((random-float 1) < liar-probability) [set isLiar True]
+    ]
   ]
 end
 
@@ -818,6 +893,11 @@ to spawn-provider
       set color green
       set utility random-normal 7.5 1
       set pRatingList []
+      set isLiar False
+      if (do_liars)
+      [
+        if ((random-float 1) < liar-probability) [set isLiar True]
+      ]
     ]
   ]
   [
@@ -832,6 +912,11 @@ to spawn-provider
         set color gray
         set utility random-normal 2.5 2
         set pRatingList []
+        set isLiar False
+        if (do_liars)
+        [
+          if ((random-float 1) < liar-probability) [set isLiar True]
+        ]
       ]
     ]
     [
@@ -846,6 +931,11 @@ to spawn-provider
           set color red
           set utility random-normal -5 2
           set pRatingList []
+          set isLiar False
+          if (do_liars)
+          [
+            if ((random-float 1) < liar-probability) [set isLiar True]
+          ]
         ]
       ]
       [
@@ -860,6 +950,11 @@ to spawn-provider
             set color pink
             set utility random-normal 0 5
             set pRatingList []
+            set isLiar False
+            if (do_liars)
+            [
+              if ((random-float 1) < liar-probability) [set isLiar True]
+            ]
           ]
         ]
       ]
@@ -902,9 +997,9 @@ ticks
 30.0
 
 SLIDER
-10
+9
 106
-165
+164
 139
 number-of-consumers
 number-of-consumers
@@ -966,10 +1061,10 @@ NIL
 1
 
 SLIDER
-13
-510
-185
-543
+8
+587
+180
+620
 max-death-per-tick
 max-death-per-tick
 2
@@ -981,10 +1076,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-13
-545
-185
-578
+8
+622
+180
+655
 max-spawn-per-tick
 max-spawn-per-tick
 2
@@ -1014,10 +1109,10 @@ PENS
 "utility" 1.0 0 -16777216 true "" "histogram [profile] of providers "
 
 SLIDER
-13
-581
-185
-614
+8
+658
+180
+691
 delta_ang
 delta_ang
 0
@@ -1044,10 +1139,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-13
-475
-205
-508
+8
+552
+200
+585
 consumer-death-n-spawn
 consumer-death-n-spawn
 0
@@ -1059,10 +1154,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-14
-439
-204
-472
+9
+516
+199
+549
 provider-death-n-spawn
 provider-death-n-spawn
 0
@@ -1183,10 +1278,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot temperature"
 
 SWITCH
-13
-403
-151
-436
+8
+480
+146
+513
 DYNAMIC_ENV
 DYNAMIC_ENV
 1
@@ -1259,18 +1354,105 @@ HAS_PROFILER
 -1000
 
 SLIDER
-145
-46
-317
-79
+161
+52
+333
+85
 nb-simulation
 nb-simulation
 1
-100
-12.0
+20
+10.0
 1
 1
 NIL
+HORIZONTAL
+
+PLOT
+470
+449
+670
+599
+Utility histogram of consumers
+NIL
+NIL
+-100.0
+100.0
+0.0
+1.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "histogram [100 * (item 3 (last ratingList))] of consumers"
+
+BUTTON
+672
+450
+767
+483
+save histogram
+export-histogram-ug
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+SWITCH
+140
+313
+269
+346
+save_mean_deviation_ug
+save_mean_deviation_ug
+1
+1
+-1000
+
+SWITCH
+13
+373
+126
+406
+do_liars
+do_liars
+0
+1
+-1000
+
+SLIDER
+131
+373
+327
+406
+liar-probability
+liar-probability
+0
+1
+1.0
+0.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+131
+417
+303
+450
+maximum-lie
+maximum-lie
+0
+20
+5.0
+0.1
+1
+UG
 HORIZONTAL
 
 @#$#@#$#@
